@@ -23,12 +23,13 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-This repository was made to manage the Tenant Microservice Context for both Saas and BackOffice, the bounded contexts are:
+This repository was made to serve as a boilerplate Microservice Context Skeleton for both Saas and BackOffice, the example bounded contexts are:
+
 - Tenant Types
 - Tenants
 - Tenant Configuration
 
-### This app uses these technologies:
+### This app uses these technologies
 
 - PostgreSql for data persistance
 - [TypeORM](https://typeorm.io/) implementing DataMapper pattern
