@@ -1,5 +1,5 @@
-import { dbConfig } from './../../shared/infrastructure/persistance/postgre-sql/dbConfig';
-import { TenantType } from './entities/tenant-type.entity';
+import { dbConfig } from '../../../infrastructure/persistance/postgre-sql/dbConfig';
+import { TenantType } from '../infrastructure/entities/tenant-type.entity';
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateTenantTypeDto } from './dto/create-tenant-type.dto';

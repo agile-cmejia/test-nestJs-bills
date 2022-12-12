@@ -1,9 +1,9 @@
-import { FindTenantDto } from './dto/find-tenant.dto';
 import { capitalizeSentence } from './../../shared/utils';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Logger } from '@nestjs/common';
-import { TenantsService } from './tenants.service';
-import { CreateTenantDto } from './dto/create-tenant.dto';
-import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { TenantsService } from '../../shared/context/tenants/domain/tenants.service';
+import { FindTenantDto } from '../../shared/context/tenants/domain/dto/find-tenant.dto';
+import { CreateTenantDto } from '../../shared/context/tenants/domain/dto/create-tenant.dto';
+import { UpdateTenantDto } from '../../shared/context/tenants/domain/dto/update-tenant.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('tenants')

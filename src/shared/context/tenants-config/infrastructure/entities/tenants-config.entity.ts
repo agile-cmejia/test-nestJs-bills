@@ -1,4 +1,4 @@
-import { Tenant } from './../../tenants/entities/tenant.entity';
+import { Tenant } from '../../../tenants/infrastructure/entities/tenant.entity';
 import { PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, Entity } from 'typeorm';
 
 @Entity()

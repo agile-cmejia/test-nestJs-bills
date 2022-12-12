@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Logger } from '@nestjs/common';
-import { TenantsConfigService } from './tenants-config.service';
-import { CreateTenantsConfigDto } from './dto/create-tenants-config.dto';
-import { UpdateTenantsConfigDto } from './dto/update-tenants-config.dto';
+import { TenantsConfigService } from '../../shared/context/tenants-config/domain/tenants-config.service';
+import { CreateTenantsConfigDto } from '../../shared/context/tenants-config/domain/dto/create-tenants-config.dto';
+import { UpdateTenantsConfigDto } from '../../shared/context/tenants-config/domain/dto/update-tenants-config.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('tenants-config')

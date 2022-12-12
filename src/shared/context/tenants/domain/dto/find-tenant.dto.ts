@@ -16,13 +16,13 @@ export class FindTenantDto extends PartialType(CreateTenantDto) {
   parentIds?: number[];
 
   @ApiProperty({ nullable: true, type: [Number] })
-  coverageZoneIds: number[];
+  coverageZoneIds?: number[];
 
   @ApiProperty({ nullable: true, type: [String] })
-  urls: string[];
+  urls?: string[];
 
   @ApiProperty()
-  enabled: boolean;
+  enabled?: boolean;
 
   @ApiProperty({ nullable: true, type: [Number] })
   userIds?: number[];

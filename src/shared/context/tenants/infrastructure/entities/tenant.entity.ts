@@ -1,5 +1,6 @@
-import { TenantType } from './../../tenant-types/entities/tenant-type.entity';
-import { TenantsConfig } from '../../tenants-config/entities/tenants-config.entity';
+import { User } from '../../../users/infrastructure/entities/user.entity';
+import { TenantType } from '../../../tenant-types/infrastructure/entities/tenant-type.entity';
+import { TenantsConfig } from '../../../tenants-config/infrastructure/entities/tenants-config.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -28,10 +29,10 @@ export class Tenant {
   @Column({ nullable: true })
   parentId?: number;
 
-  @Column()
+  @Column({ default: 0 })
   coverageZoneId: number;
 
-  @Column()
+  @Column({ nullable: true })
   url: string;
 
   @Column({ default: true })
@@ -62,15 +63,15 @@ export class Tenant {
   @OneToMany(() => Tenant, (tenant) => tenant.parent)
   children?: Tenant[];
 
+  @ManyToMany(() => User, (user) => user.tenants)
+  @JoinTable()
+  users: User[];
   /*
 
     @ManyToOne(() => CoverageZone)
   @JoinColumn({ name: 'coverage_zone_id' })
   coverageZone?: NullishCoverageZone;
 
-  @ManyToMany(() => User, user => user.tenants)
-  @JoinTable()
-  users: User[];
 
   @OneToMany(() => UserRoleByTenants, userRoleByTenants => userRoleByTenants.tenant)
   roles: UserRoleByTenants[];

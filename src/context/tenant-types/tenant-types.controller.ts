@@ -1,9 +1,9 @@
-import { FindTenantTypeDto } from './dto/find-tenant-type.dto';
 import { capitalizeSentence } from '../../shared/utils';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Logger } from '@nestjs/common';
-import { TenantTypesService } from './tenant-types.service';
-import { CreateTenantTypeDto } from './dto/create-tenant-type.dto';
-import { UpdateTenantTypeDto } from './dto/update-tenant-type.dto';
+import { TenantTypesService } from '../../shared/context/tenant-types/domain/tenant-types.service';
+import { FindTenantTypeDto } from '../../shared/context/tenant-types/domain/dto/find-tenant-type.dto';
+import { CreateTenantTypeDto } from '../../shared/context/tenant-types/domain/dto/create-tenant-type.dto';
+import { UpdateTenantTypeDto } from '../../shared/context/tenant-types/domain/dto/update-tenant-type.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('tenant-types')
