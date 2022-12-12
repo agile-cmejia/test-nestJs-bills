@@ -1,5 +1,14 @@
-import { Tenant } from './../../tenants/entities/tenant.entity';
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany } from 'typeorm';
+import { Tenant } from '../../../tenants/infrastructure/entities/tenant.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToMany,
+  JoinTable,
+} from 'typeorm';
+import { Role } from '../../../roles/infrastructure/entities/role.entity';
 
 @Entity()
 export class TenantType {
@@ -31,13 +40,13 @@ export class TenantType {
   @ManyToMany(() => Tenant, (tenant) => tenant.tenantType)
   children: Tenant[];
 
-  /*
-  @ManyToMany(() => RecordType, (RecordTypes) => RecordTypes.tenantTypes)
+  @ManyToMany(() => Role, (roles) => roles.tenantTypes)
   @JoinTable()
-  recordTypes?: RecordType[];
+  roles: Role[];
 
-    @ManyToMany(() => Role, roles => roles.tenantTypes)
+  /*
+    @ManyToMany(() => RecordType, (RecordTypes) => RecordTypes.tenantTypes)
     @JoinTable()
-    roles: Role[];
-    */
+    recordTypes?: RecordType[];
+  */
 }

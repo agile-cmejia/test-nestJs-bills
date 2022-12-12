@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantsConfigController } from './tenants-config.controller';
-import { TenantsConfigService } from './tenants-config.service';
+import { TenantsConfigService } from '../../shared/context/tenants-config/domain/tenants-config.service';
 
 describe('TenantsConfigController', () => {
   let controller: TenantsConfigController;

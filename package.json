@@ -20,7 +20,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "pretty": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" && eslint \"{src,apps,libs,test}/**/*.ts\" --fix --cache",
+    "pretty:lint": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" && eslint \"{src,apps,libs,test}/**/*.ts\" --fix --cache",
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "yarn typeorm migration:generate -- -d src/shared/infrastructure/persistance/postgre-sql/migration.config.ts",
     "migration:create": "yarn typeorm migration:create",

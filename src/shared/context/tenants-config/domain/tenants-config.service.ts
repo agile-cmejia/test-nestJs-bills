@@ -1,9 +1,9 @@
-import { dbConfig } from './../../shared/infrastructure/persistance/postgre-sql/dbConfig';
+import { dbConfig } from './../../../infrastructure/persistance/postgre-sql/dbConfig';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateTenantsConfigDto } from './dto/create-tenants-config.dto';
 import { UpdateTenantsConfigDto } from './dto/update-tenants-config.dto';
-import { TenantsConfig } from './entities/tenants-config.entity';
+import { TenantsConfig } from '../infrastructure/entities/tenants-config.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()

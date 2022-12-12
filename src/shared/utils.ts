@@ -1,3 +1,5 @@
+import { Tenant } from './context/tenants/infrastructure/entities/tenant.entity';
+import { FindTenantDto } from './context/tenants/domain/dto/find-tenant.dto';
 import { IssuerEnum } from './dataTypes/Enums';
 export const evalENVBoolean = (val: string | undefined): boolean => {
   return val?.toLocaleLowerCase() === 'true';
@@ -52,4 +54,20 @@ export const stringHasNumbers = (text: string) => {
 export const isValidApplication = (app: string): boolean => {
   const options: string[] = Object.values(IssuerEnum);
   return options.includes(app);
+};
+
+export const fetchTenants = async (args: FindTenantDto, url: string) => {
+  const opts = {
+    method: 'POST',
+    body: JSON.stringify(args),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+  const response = await fetch(url, opts)
+    .then((response) => response.json())
+    .catch((err) => {
+      throw err;
+    });
+  return response as Tenant[];
 };

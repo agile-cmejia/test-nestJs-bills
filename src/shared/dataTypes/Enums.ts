@@ -4,7 +4,7 @@ export enum IssuerEnum {
 }
 
 export enum FieldAccessEnum {
-  NotAllowed = 'Not Allowed',
+  NotAllowed = 'NotAllowed',
   Editable = 'Editable',
-  ViewOnly = 'View Only',
+  ViewOnly = 'ViewOnly',
 }
