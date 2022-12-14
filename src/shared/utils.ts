@@ -1,3 +1,4 @@
+import { Logger, NotFoundException } from '@nestjs/common';
 import { Tenant } from './context/tenants/infrastructure/entities/tenant.entity';
 import { FindTenantDto } from './context/tenants/domain/dto/find-tenant.dto';
 import { IssuerEnum } from './dataTypes/Enums';
@@ -56,7 +57,17 @@ export const isValidApplication = (app: string): boolean => {
   return options.includes(app);
 };
 
-export const fetchTenants = async (args: FindTenantDto, url: string) => {
+export const fetchTenants = async (args: FindTenantDto) => {
+  const url = process.env.TENANTS_MS_URL || 'error';
+  const logger = new Logger(fetchTenants.name);
+
+  if (url === 'error') {
+    logger.error(`Missing TENANTS_MS_URL env variable`);
+    throw new NotFoundException('TENANTS_MS_URL env variable not found', {
+      cause: new Error(),
+      description: `Missing TENANTS_MS_URL env variable`,
+    });
+  }
   const opts = {
     method: 'POST',
     body: JSON.stringify(args),
@@ -64,10 +75,17 @@ export const fetchTenants = async (args: FindTenantDto, url: string) => {
       'Content-Type': 'application/json',
     },
   };
-  const response = await fetch(url, opts)
-    .then((response) => response.json())
-    .catch((err) => {
-      throw err;
-    });
-  return response as Tenant[];
+  try {
+    const foundTenants = await fetch(url, opts)
+      .then((response) => response.json())
+      .catch((err) => {
+        logger.error(`An error has occurred`);
+        logger.error(err);
+      });
+
+    return foundTenants as Tenant[];
+  } catch (e) {
+    logger.error(`An error has occurred`);
+    logger.error(e);
+  }
 };

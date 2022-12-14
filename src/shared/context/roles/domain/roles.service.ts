@@ -33,27 +33,14 @@ export class RolesService {
       this.logger.log(`tenant types: ${createRoleDto.tenantTypesIds}`);
     }
     if (tenantSpecific) {
-      const url = process.env.TENANTS_MS_URL || 'error';
-      if (url === 'error') {
-        this.logger.error(`Missing TENANTS_MS_URL env variable`);
-        throw new NotFoundException('Role  not found', {
+      this.logger.log(`looking for tenant with id:${tenantCreatorId}`);
+      const foundTenantCreator = await fetchTenants({ ids: [tenantCreatorId] });
+      if (foundTenantCreator.length < 1) {
+        this.logger.error(`The tenant with id ${tenantCreatorId} was not found`);
+        throw new NotFoundException('Tenant  not found', {
           cause: new Error(),
-          description: `Missing TENANTS_MS_URL env variable`,
+          description: `The tenant with id ${tenantCreatorId} was not found`,
         });
-      }
-      try {
-        this.logger.log(`looking for tenant with id:${tenantCreatorId}`);
-        const foundTenantCreator = await fetchTenants({ ids: [tenantCreatorId] }, url);
-        if (foundTenantCreator.length < 1) {
-          this.logger.error(`The tenant with id ${tenantCreatorId} was not found`);
-          throw new NotFoundException('Tenant  not found', {
-            cause: new Error(),
-            description: `The tenant with id ${tenantCreatorId} was not found`,
-          });
-        }
-      } catch (e) {
-        this.logger.error(`An error has occurred`);
-        this.logger.error(e);
       }
     }
     const newTenantType = this.rolesRepository.create({
@@ -226,27 +213,14 @@ export class RolesService {
       roleToUpdate.tag = tag.toLowerCase().trim();
     }
     if (tenantSpecific) {
-      const url = process.env.TENANTS_MS_URL || 'error';
-      if (url === 'error') {
-        this.logger.error(`Missing TENANTS_MS_URL env variable`);
-        throw new NotFoundException('Role  not found', {
+      this.logger.log(`looking for tenant with id:${tenantCreatorId}`);
+      const foundTenantCreator = await fetchTenants({ ids: [tenantCreatorId] });
+      if (foundTenantCreator.length < 1) {
+        this.logger.error(`The tenant with id ${tenantCreatorId} was not found`);
+        throw new NotFoundException('Tenant  not found', {
           cause: new Error(),
-          description: `Missing TENANTS_MS_URL env variable`,
+          description: `The tenant with id ${tenantCreatorId} was not found`,
         });
-      }
-      try {
-        this.logger.log(`looking for tenant with id:${tenantCreatorId}`);
-        const foundTenantCreator = await fetchTenants({ ids: [tenantCreatorId] }, url);
-        if (foundTenantCreator.length < 1) {
-          this.logger.error(`The tenant with id ${tenantCreatorId} was not found`);
-          throw new NotFoundException('Tenant  not found', {
-            cause: new Error(),
-            description: `The tenant with id ${tenantCreatorId} was not found`,
-          });
-        }
-      } catch (e) {
-        this.logger.error(`An error has occurred`);
-        this.logger.error(e);
       }
     }
     this.rolesRepository.merge(roleToUpdate, {

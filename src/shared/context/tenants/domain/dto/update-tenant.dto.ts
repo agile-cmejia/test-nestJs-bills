@@ -7,12 +7,10 @@ export class UpdateTenantDto extends PartialType(CreateTenantDto) {
   @ApiProperty()
   id: number;
 
-  @IsNotEmpty()
   @Length(2, 200)
   @ApiProperty()
   name: string;
 
-  @IsNotEmpty()
   @Length(2, 400)
   @ApiProperty()
   description: string;
@@ -20,7 +18,6 @@ export class UpdateTenantDto extends PartialType(CreateTenantDto) {
   @ApiProperty()
   parentId?: number;
 
-  @IsNotEmpty()
   @ApiProperty()
   coverageZoneId: number;
 

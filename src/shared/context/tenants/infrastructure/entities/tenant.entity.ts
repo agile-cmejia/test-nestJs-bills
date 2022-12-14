@@ -1,3 +1,7 @@
+import {
+  CoverageZone,
+  NullishCoverageZone,
+} from './../../../coverage-zones/infrastructure/entities/coverage-zone.entity';
 import { User } from '../../../users/infrastructure/entities/user.entity';
 import { TenantType } from '../../../tenant-types/infrastructure/entities/tenant-type.entity';
 import { TenantsConfig } from '../../../tenants-config/infrastructure/entities/tenants-config.entity';
@@ -14,6 +18,8 @@ import {
   ManyToOne,
   OneToMany,
 } from 'typeorm';
+
+export type NullishTenant = Tenant | null;
 
 @Entity()
 export class Tenant {
@@ -66,12 +72,12 @@ export class Tenant {
   @ManyToMany(() => User, (user) => user.tenants)
   @JoinTable()
   users: User[];
-  /*
 
-    @ManyToOne(() => CoverageZone)
+  @ManyToOne(() => CoverageZone)
   @JoinColumn({ name: 'coverage_zone_id' })
   coverageZone?: NullishCoverageZone;
 
+  /*
 
   @OneToMany(() => UserRoleByTenants, userRoleByTenants => userRoleByTenants.tenant)
   roles: UserRoleByTenants[];

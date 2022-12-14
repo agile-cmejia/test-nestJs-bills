@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { CORRELATION_ID_HEADER } from '../../middleware/correlation-id/correlation-id.middleware';
+import { CORRELATION_ID_HEADER } from './../../middleware/correlation-id/correlation-id.middleware';
 
 export const pinoOptions = {
   pinoHttp: {
