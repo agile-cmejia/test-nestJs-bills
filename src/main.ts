@@ -15,9 +15,6 @@ async function bootstrap() {
     .setTitle('Tenant Micro Service')
     .setDescription('Tenants Micro Service API documentation')
     .setVersion('1.0')
-    .addTag('tenant-types')
-    .addTag('tenants')
-    .addTag('tenants-config')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
