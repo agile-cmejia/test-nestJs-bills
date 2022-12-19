@@ -1,3 +1,4 @@
+import { RecordType } from '../../../record-types/infrastructure/entities/record-type.entity';
 import { Tenant } from '../../../tenants/infrastructure/entities/tenant.entity';
 import {
   Entity,
@@ -44,9 +45,7 @@ export class TenantType {
   @JoinTable()
   roles: Role[];
 
-  /*
-    @ManyToMany(() => RecordType, (RecordTypes) => RecordTypes.tenantTypes)
-    @JoinTable()
-    recordTypes?: RecordType[];
-  */
+  @ManyToMany(() => RecordType, (RecordTypes) => RecordTypes.tenantTypes)
+  @JoinTable()
+  recordTypes?: RecordType[];
 }

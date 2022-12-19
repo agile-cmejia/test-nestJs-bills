@@ -1,5 +1,16 @@
+import { RecordType } from '../../../record-types/infrastructure/entities/record-type.entity';
+
 import { AppSection } from './../../../app-sections/infrastructure/entities/app-section.entity';
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToMany,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 @Entity()
 export class AppMenuItem {
   @PrimaryGeneratedColumn()
@@ -23,11 +34,11 @@ export class AppMenuItem {
   @Column({ type: 'boolean', default: false })
   hasRecordTypes: boolean;
 
+  @ManyToOne(() => RecordType, (recordType) => recordType.appMenuItems)
+  @JoinColumn({ name: 'record_type_id' })
+  recordType: RecordType | null;
+
   /*  
-        @ManyToOne(() => RecordType, (recordType) => recordType.menuItems)
-        @JoinColumn({ name: 'record_type_id' })
-        recordType: RecordType | null;
-        
         @OneToMany(() => RoleMenuItemActions, (roleMenuItemActions) => roleMenuItemActions.menuItem)
         roleMenuItemActions: RoleMenuItemActions[];
               */

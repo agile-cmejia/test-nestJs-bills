@@ -1,7 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column, BaseEntity, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { AppMenuItem } from './../../../app-menu-items/infrastructure/entities/app-menu-item.entity';
+import { TenantType } from './../../../tenant-types/infrastructure/entities/tenant-type.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToMany,
+  OneToMany,
+} from 'typeorm';
 
 @Entity()
-export class RecordType extends BaseEntity {
+export class RecordType {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -9,10 +19,10 @@ export class RecordType extends BaseEntity {
   name: string;
 
   @Column()
-  description: string;
+  botName: string;
 
-  @Column('text', { unique: true })
-  tag: string;
+  @Column()
+  description: string;
 
   @Column({ type: 'boolean', default: true })
   enabled?: boolean;
@@ -26,16 +36,31 @@ export class RecordType extends BaseEntity {
     onUpdate: 'CURRENT_TIMESTAMP(6)',
   })
   public updatedAt: Date;
-  /* 
-    @ManyToMany(() => Tenant, tenant => tenant.tenantType)
-    children: Tenant[];
-  
-    @ManyToMany(() => Role, roles => roles.tenantTypes)
-    @JoinTable()
-    roles: Role[];
-  
-    @ManyToMany(() => RecordType, RecordTypes => RecordTypes.tenantTypes)
-    @JoinTable()
-    recordTypes?: RecordType[];
+
+  @ManyToMany(() => TenantType, (tenantTypes) => tenantTypes.recordTypes)
+  tenantTypes: TenantType[];
+
+  @OneToMany(() => AppMenuItem, (appMenuItem) => appMenuItem.recordType)
+  appMenuItems: AppMenuItem[];
+  /*
+  @ManyToMany(
+    () => RecordAdditionalFieldsByType,
+    (recordAdditionalFieldsByType) => recordAdditionalFieldsByType.recordTypes,
+  )
+  @JoinTable()
+  additionalRecordFields: RecordAdditionalFieldsByType[];
+
+  @OneToMany(() => FieldVisibilityByRecordType, (fieldVisibilityByRecordType) => fieldVisibilityByRecordType.recordType)
+  recordFieldVisibility: FieldVisibilityByRecordType[] | null;
+
+  @OneToMany(() => RoleAccessToRecordFields, (roleAccessToRecordFields) => roleAccessToRecordFields.recordType)
+  roleAccessToRecordFields: RoleAccessToRecordFields[] | null;
+
+  @OneToMany(() => RecordStatusByRecordType, (recordStatusByRecordType) => recordStatusByRecordType.recordType)
+  recordStatus: RecordStatusByRecordType[] | null;
+
+  @OneToMany(() => ProblemCodeByRecordType, (problemCode) => problemCode.recordType)
+  problemCode: ProblemCodeByRecordType[] | null;
+
    */
 }

@@ -1,3 +1,5 @@
+import { FindTenantTypeDto } from './context/tenant-types/domain/dto/find-tenant-type.dto';
+import { TenantType } from './context/tenant-types/infrastructure/entities/tenant-type.entity';
 import { Logger, NotFoundException } from '@nestjs/common';
 import { Tenant } from './context/tenants/infrastructure/entities/tenant.entity';
 import { FindTenantDto } from './context/tenants/domain/dto/find-tenant.dto';
@@ -57,6 +59,39 @@ export const isValidApplication = (app: string): boolean => {
   return options.includes(app);
 };
 
+export const fetchTenantTypes = async (args: FindTenantTypeDto) => {
+  const url = process.env.TENANTS_MS_URL || 'error';
+  const logger = new Logger(fetchTenants.name);
+
+  if (url === 'error') {
+    logger.error(`Missing TENANTS_MS_URL env variable`);
+    throw new NotFoundException('TENANTS_MS_URL env variable not found', {
+      cause: new Error(),
+      description: `Missing TENANTS_MS_URL env variable`,
+    });
+  }
+  const opts = {
+    method: 'POST',
+    body: JSON.stringify(args),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+  try {
+    const tenantTypeApi = url + 'tenant-types/many';
+    const foundTenantTypes = await fetch(tenantTypeApi, opts)
+      .then((response) => response.json())
+      .catch((err) => {
+        logger.error(`An error has occurred`);
+        logger.error(err);
+      });
+
+    return foundTenantTypes as TenantType[];
+  } catch (e) {
+    logger.error(`An error has occurred`);
+    logger.error(e);
+  }
+};
 export const fetchTenants = async (args: FindTenantDto) => {
   const url = process.env.TENANTS_MS_URL || 'error';
   const logger = new Logger(fetchTenants.name);
@@ -76,7 +111,8 @@ export const fetchTenants = async (args: FindTenantDto) => {
     },
   };
   try {
-    const foundTenants = await fetch(url, opts)
+    const tenantApi = url + 'tenant-types/many';
+    const foundTenants = await fetch(tenantApi, opts)
       .then((response) => response.json())
       .catch((err) => {
         logger.error(`An error has occurred`);
