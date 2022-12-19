@@ -6,16 +6,16 @@ export class FindRecordTypeDto extends PartialType(CreateRecordTypeDto) {
   ids?: number[];
 
   @ApiProperty({ nullable: true, type: [String] })
-  names: string[];
+  names?: string[];
 
   @ApiProperty({ nullable: true, type: [String] })
   botNames?: string[];
 
   @ApiProperty({ nullable: true, type: [String] })
-  descriptions: string[];
+  descriptions?: string[];
 
   @ApiProperty()
-  enabled: boolean;
+  enabled?: boolean;
 
   @ApiProperty({ nullable: true, type: [Number] })
   fieldVisibilityOptionIds?: number[];

@@ -8,3 +8,11 @@ export enum FieldAccessEnum {
   Editable = 'Editable',
   ViewOnly = 'ViewOnly',
 }
+
+export enum AdditionalFieldDataTypeEnum {
+  String = 'String',
+  Number = 'Number',
+  Date = 'Date',
+  DropDown = 'DropDown',
+  File = 'File',
+}

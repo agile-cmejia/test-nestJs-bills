@@ -1,3 +1,4 @@
+import { RecordAdditionalFieldsByType } from '../../../record-additional-fields-by-types/infrastructure/entities/record-additional-fields-by-type.entity';
 import { AppMenuItem } from './../../../app-menu-items/infrastructure/entities/app-menu-item.entity';
 import { TenantType } from './../../../tenant-types/infrastructure/entities/tenant-type.entity';
 import {
@@ -8,6 +9,7 @@ import {
   UpdateDateColumn,
   ManyToMany,
   OneToMany,
+  JoinTable,
 } from 'typeorm';
 
 @Entity()
@@ -42,13 +44,14 @@ export class RecordType {
 
   @OneToMany(() => AppMenuItem, (appMenuItem) => appMenuItem.recordType)
   appMenuItems: AppMenuItem[];
-  /*
   @ManyToMany(
     () => RecordAdditionalFieldsByType,
     (recordAdditionalFieldsByType) => recordAdditionalFieldsByType.recordTypes,
   )
   @JoinTable()
   additionalRecordFields: RecordAdditionalFieldsByType[];
+
+  /*
 
   @OneToMany(() => FieldVisibilityByRecordType, (fieldVisibilityByRecordType) => fieldVisibilityByRecordType.recordType)
   recordFieldVisibility: FieldVisibilityByRecordType[] | null;

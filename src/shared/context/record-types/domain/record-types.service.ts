@@ -11,12 +11,12 @@ import { Repository } from 'typeorm';
 @Injectable()
 export class RecordTypesService {
   private readonly logger = new Logger(RecordTypesService.name);
+  private recordTypesCollection: RecordType[] = [];
 
   constructor(
     @InjectRepository(RecordType, dbConfig.name)
     private readonly recordTypeRepository: Repository<RecordType>,
   ) {}
-  private recordTypesCollection: RecordType[] = [];
 
   async create(createRecordTypeDto: CreateRecordTypeDto) {
     this.logger.log('Creating new Tenant Type...');
