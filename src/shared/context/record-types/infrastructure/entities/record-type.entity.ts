@@ -1,3 +1,4 @@
+import { RecordFieldsVisibilityByType } from '../../../record-fields-visibility-by-types/infrastructure/entities/record-fields-visibility-by-type.entity';
 import { RecordAdditionalFieldsByType } from '../../../record-additional-fields-by-types/infrastructure/entities/record-additional-fields-by-type.entity';
 import { AppMenuItem } from './../../../app-menu-items/infrastructure/entities/app-menu-item.entity';
 import { TenantType } from './../../../tenant-types/infrastructure/entities/tenant-type.entity';
@@ -51,10 +52,12 @@ export class RecordType {
   @JoinTable()
   additionalRecordFields: RecordAdditionalFieldsByType[];
 
+  @OneToMany(
+    () => RecordFieldsVisibilityByType,
+    (recordFieldsVisibilityByType) => recordFieldsVisibilityByType.recordType,
+  )
+  recordFieldsVisibility: RecordFieldsVisibilityByType[] | null;
   /*
-
-  @OneToMany(() => FieldVisibilityByRecordType, (fieldVisibilityByRecordType) => fieldVisibilityByRecordType.recordType)
-  recordFieldVisibility: FieldVisibilityByRecordType[] | null;
 
   @OneToMany(() => RoleAccessToRecordFields, (roleAccessToRecordFields) => roleAccessToRecordFields.recordType)
   roleAccessToRecordFields: RoleAccessToRecordFields[] | null;
