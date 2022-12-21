@@ -39,13 +39,13 @@ export class TenantType {
   public updatedAt: Date;
 
   @ManyToMany(() => Tenant, (tenant) => tenant.tenantType)
-  children: Tenant[];
+  children?: Tenant[] | null;
 
   @ManyToMany(() => Role, (roles) => roles.tenantTypes)
   @JoinTable()
-  roles: Role[];
+  roles?: Role[] | null;
 
   @ManyToMany(() => RecordType, (RecordTypes) => RecordTypes.tenantTypes)
   @JoinTable()
-  recordTypes?: RecordType[];
+  recordTypes?: RecordType[] | null;
 }
