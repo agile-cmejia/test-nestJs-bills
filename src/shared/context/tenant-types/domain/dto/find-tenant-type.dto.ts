@@ -9,10 +9,10 @@ export class FindTenantTypeDto extends PartialType(TenantTypeDto) {
   names?: string[];
 
   @ApiProperty({ nullable: true, type: [String] })
-  descriptions?: string;
+  descriptions?: string[];
 
   @ApiProperty({ nullable: true, type: [String] })
-  tags?: string;
+  tags?: string[];
 
   @ApiProperty({ nullable: true })
   enabled?: boolean;
