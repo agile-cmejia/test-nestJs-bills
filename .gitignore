@@ -36,3 +36,10 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+
+# DevOps
+kubernetes/
+.github/workflows/
+sonar-project.properties
+.npmrc

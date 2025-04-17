@@ -1,7 +1,15 @@
 import { dbConfig } from './dbConfig';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import * as commonEntities from '@avantodev/avanto-db';
 import { DataSourceOptions } from 'typeorm';
 
+const models = [];
+for (const key in commonEntities) {
+  if (commonEntities.hasOwnProperty(key)) {
+    const model = commonEntities[key];
+    models.push(model);
+  }
+}
 export const appPostgresDataSource = {
   type: 'postgres',
   name: dbConfig.name,
@@ -14,9 +22,7 @@ export const appPostgresDataSource = {
   schema: dbConfig.schema,
   logging: dbConfig.logging,
   autoLoadEntities: true,
-  entities: ['dist/**/*.entity{.ts,.js}'],
-  migrationsTableName: 'migrations',
-  migrations: ['src/shared/infrastructure/persistance/type-orm/migrations/*.{.ts,.js}'],
+  entities: models,
 } as TypeOrmModuleOptions;
 
 export function getConfig() {
@@ -32,8 +38,6 @@ export function getConfig() {
     schema: dbConfig.schema,
     logging: dbConfig.logging,
     autoLoadEntities: true,
-    entities: ['dist/**/*.entity{.ts,.js}'],
-    migrationsTableName: 'migrations',
-    migrations: ['src/shared/infrastructure/persistance/type-orm/migrations/*.{.ts,.js}'],
+    entities: models,
   } as DataSourceOptions;
 }

@@ -6,10 +6,14 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { TenantTypesModule } from './context/tenant-types/tenant-types.module';
+import { EntitiesModule } from './context/entities/entities.module';
 
 @Module({
-  imports: [TypeOrmModule.forRoot(appPostgresDataSource), LoggerModule.forRoot(pinoOptions), TenantTypesModule],
+  imports: [
+    TypeOrmModule.forRoot(appPostgresDataSource),
+    LoggerModule.forRoot(pinoOptions),
+    EntitiesModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

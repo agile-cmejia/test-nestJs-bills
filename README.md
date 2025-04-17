@@ -2,11 +2,14 @@
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
 </p>
 
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
+
   <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
     <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/yarn/v/@nestjs/core.svg" alt="yarn Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/yarn/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/yarn/dm/@nestjs/common.svg" alt="yarn Downloads" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
 <a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
 <a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
 <a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
@@ -23,55 +26,36 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-This repository was made to serve as a boilerplate Microservice Context Skeleton for both Saas and BackOffice, the example bounded contexts are:
-
-- Tenant Types
-- Tenants
-- Tenant Configuration
-
-### This app uses these technologies
-
-- PostgreSql for data persistance
-- [TypeORM](https://typeorm.io/) implementing DataMapper pattern
-- [Husky](https://typicode.github.io/husky/#/) for commit hooks
-- Prettier for Code formatting
-- EsLint as linter
-- [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-
 ## Installation
 
 ```bash
-# Initial Instalation
-yarn install
-
-# Install husky
-yarn prepare
+$ yarn install
 ```
 
 ## Running the app
 
 ```bash
 # development
-$ yarn start
+$ yarn run start
 
 # watch mode
-$ yarn dev
+$ yarn run start:dev
 
 # production mode
-$ yarn prod
+$ yarn run start:prod
 ```
 
 ## Test
 
 ```bash
 # unit tests
-$ yarn test
+$ yarn run test
 
 # e2e tests
-$ yarn test:e2e
+$ yarn run test:e2e
 
 # test coverage
-$ yarn test:cov
+$ yarn run test:cov
 ```
 
 ## Support
