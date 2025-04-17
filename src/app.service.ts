@@ -6,6 +6,6 @@ export class AppService {
 
   getHello() {
     this.logger.log(`${AppService.name} called function ${this.getHello.name}`);
-    return { message: `Service ${AppService.name} working !!` };
+    return { message: `Service ${AppService.name} running!` };
   }
 }

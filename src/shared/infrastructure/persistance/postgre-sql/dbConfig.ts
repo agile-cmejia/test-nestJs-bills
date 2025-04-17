@@ -1,11 +1,11 @@
 import { evalENVBoolean } from '../../../utils';
-import { PostgreSQLConfig } from '../../../dataTypes/PostgreSQLConfig';
 import 'dotenv/config';
+import { PostgreSQLConfig } from '@avantodev/avanto-shared-resources/dist/infrastructure/persistence/PostgreSQL/PostgreSQL.config';
 
 export const dbConfig: PostgreSQLConfig = {
   name: process.env.NODE_ENV || 'dev',
   host: process.env.DB_HOST || 'localhost',
-  port: +(process.env.BD_PORT || 5432),
+  port: +(process.env.DB_PORT || 5432),
   username: process.env.DB_USERNAME || 'root',
   password: process.env.DB_PASSWORD || 'root',
   database: process.env.DB_NAME || 'postgres',

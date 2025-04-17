@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: [reponame]-deployment
+  namespace: backend-apps
+  labels:
+    app: [reponame]
+spec:
+  replicas: CONTAINER_REPLICAS
+  selector:
+    matchLabels:
+      app: [reponame]
+  template:
+    metadata:
+      labels:
+        app: [reponame]
+    spec:
+      serviceAccountName: [reponame]-secrets-access
+      containers:
+        - name: [reponame]
+          image: CONTAINER_IMAGE
+          ports:
+            - containerPort: 3170
+          resources:
+            requests:
+              cpu: 10m
+              memory: 400Mi
+            #limits:
+            #  memory: 600Mi
+          readinessProbe:
+            tcpSocket:
+              port: 3170
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 2
+            failureThreshold: 3
+          #livenessProbe:
+          #  tcpSocket:
+          #    port: 3160
+          #  initialDelaySeconds: 15
+          #  timeoutSeconds: 5
+          #  periodSeconds: 8
+          volumeMounts:
+            - name: [reponame]-secrets-access
+              mountPath: /mnt/secrets
+              readOnly: true
+          env:
+            - name: PORT
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: port
+            - name: NODE_ENV
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: node-env
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: db-user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: db-password
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: db-host
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: db-port
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: db-name
+            - name: DB_LOGGING
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: db-logging
+            - name: DB_SYNC
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: db-sync
+            - name: DB_SCHEMA
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: db-schema
+            - name: SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: secret
+            - name: TENANTS_MS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: tenants-url
+            - name: USERS_MS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: users-url
+            - name: RECORDS_MS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: records-url
+            - name: QUEUE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: [reponame]-secret
+                  key: queue-url
+      volumes:
+        - name: [reponame]-secrets-access
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: [reponame]-secrets-access
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: [reponame]-service
+spec:
+  type: NodePort
+  selector:
+    app: [reponame]
+  ports:
+    - protocol: TCP
+      port: 3170
+      targetPort: 3170
+      nodePort: 31700
+
