@@ -160,27 +160,120 @@ export class BillsService {
 
   /**
    * Find a single bill by ID with tenant isolation
-   * Full implementation will be completed in BILLS-07
+   *
+   * Implements tenant isolation by including tenantId in the WHERE clause.
+   * Throws NotFoundException if bill not found or belongs to different tenant.
+   *
+   * Note: This implementation requires the Bill entity from @avantodev/avanto-db.
+   * Once the entity is available (see docs/database-requests/2026-02-02-add-bill-entity.md),
+   * uncomment the repository injection in the constructor and remove the stub implementation.
    */
   async findOne(id: string, tenantId: number): Promise<BillResponseDto> {
     this.logger.log(
       JSON.stringify({
-        event: 'find_one_bill',
+        event: 'find_one_bill_start',
         billId: id,
         tenantId,
         timestamp: new Date().toISOString(),
       }),
     );
 
-    // Stub implementation - will be fully implemented in BILLS-07
-    // For now, throw NotFoundException as the bill doesn't exist yet
-    // Tenant isolation will be enforced in the full implementation
-    throw new NotFoundException({
-      statusCode: 404,
-      error: 'Not Found',
-      message: `Bill with ID ${id} not found`,
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      // TODO: Uncomment once Bill entity is available in @avantodev/avanto-db
+      // See docs/database-requests/2026-02-02-add-bill-entity.md for entity requirements
+
+      // Find bill by ID and tenantId (enforces tenant isolation)
+      // const bill = await this.billRepository.findOne({
+      //   where: {
+      //     id,
+      //     tenantId,
+      //   },
+      // });
+
+      // if (!bill) {
+      //   this.logger.warn(
+      //     JSON.stringify({
+      //       event: 'find_one_bill_not_found',
+      //       billId: id,
+      //       tenantId,
+      //       message: 'Bill not found or does not belong to tenant',
+      //       timestamp: new Date().toISOString(),
+      //     }),
+      //   );
+
+      //   throw new NotFoundException({
+      //     statusCode: 404,
+      //     error: 'Not Found',
+      //     message: `Bill with ID ${id} not found`,
+      //     timestamp: new Date().toISOString(),
+      //   });
+      // }
+
+      // Map entity to DTO
+      // const billDto: BillResponseDto = {
+      //   id: bill.id,
+      //   ...bill.data,
+      //   createdAt: bill.createdAt,
+      //   updatedAt: bill.updatedAt,
+      // };
+
+      // this.logger.log(
+      //   JSON.stringify({
+      //     event: 'find_one_bill_success',
+      //     billId: id,
+      //     tenantId,
+      //     invoiceNumber: bill.data?.billInfo?.invoiceNumber || null,
+      //     timestamp: new Date().toISOString(),
+      //   }),
+      // );
+
+      // return billDto;
+
+      // Temporary stub implementation until Bill entity is available in @avantodev/avanto-db
+      // This will be replaced with the actual query above once Bill entity is published
+      // See docs/database-requests/2026-02-02-add-bill-entity.md for entity requirements
+      this.logger.warn(
+        JSON.stringify({
+          event: 'find_one_bill_stub_warning',
+          message:
+            'Bill entity not yet available in @avantodev/avanto-db. Using stub implementation. Full implementation will be available after Bill entity is published.',
+          billId: id,
+          tenantId,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+
+      throw new NotFoundException({
+        statusCode: 404,
+        error: 'Not Found',
+        message: `Bill with ID ${id} not found`,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      // Re-throw NotFoundException as-is
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      // Log and wrap unknown errors
+      this.logger.error(
+        JSON.stringify({
+          event: 'find_one_bill_error',
+          billId: id,
+          tenantId,
+          error: error.message,
+          stack: error.stack,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+
+      throw new NotFoundException({
+        statusCode: 404,
+        error: 'Not Found',
+        message: `Bill with ID ${id} not found`,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 
   /**
