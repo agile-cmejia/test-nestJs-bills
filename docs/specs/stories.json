@@ -1,14 +1,392 @@
 {
-  "epic": "Example Epic",
+  "epic": "Public API - Bills Resource",
   "stories": [
     {
-      "id": "EXAMPLE-01",
-      "description": "Example Story - Replace with actual task",
-      "files_to_touch": ["src/example.ts"],
+      "id": "BILLS-01",
+      "description": "Create Bill DTOs based on bill_schema.json",
+      "files_to_touch": [
+        "src/context/bills/dto/create-bill.dto.ts",
+        "src/context/bills/dto/update-bill.dto.ts",
+        "src/context/bills/dto/bill-response.dto.ts",
+        "src/context/bills/dto/find-bills.dto.ts",
+        "src/context/bills/dto/index.ts"
+      ],
       "acceptance_criteria": [
-        "Criterion 1: Specific, measurable outcome",
-        "Criterion 2: Binary true/false check",
-        "Criterion 3: No subjective language"
+        "CreateBillDto matches bill_schema.json structure with billInfo, vendor, lineItems required",
+        "CreateBillDto includes all optional fields: dealer, billing, shipping, project, contract, financials, sourceDocument, workflow, warrantyInformation, metadata",
+        "BillResponseDto includes id, createdAt, updatedAt fields in addition to bill schema fields",
+        "UpdateBillDto extends PartialType(CreateBillDto) with all fields optional",
+        "FindBillsDto includes pagination fields: page (default 1), limit (default 20, max 100), and filter fields: invoiceNumber, vendorName, invoiceStatus, poNumber",
+        "All DTOs use @ApiProperty() or @ApiPropertyOptional() decorators with descriptions",
+        "All DTOs use class-validator decorators: @IsNotEmpty(), @IsString(), @IsNumber(), @IsOptional(), @IsEnum(), @ValidateNested(), @IsArray(), @IsEmail(), @IsDateString()",
+        "LineItemDto has required fields: productNumber, productDescription, catalogCode, quantity, productSell",
+        "LineItemDto validates quantity minimum 1, productSell minimum 0, discounts 0-100 range",
+        "Barrel export file (index.ts) exports all DTOs"
+      ],
+      "passes": true
+    },
+    {
+      "id": "BILLS-02",
+      "description": "Create BillsController with GET /api/v1/bills endpoint",
+      "files_to_touch": [
+        "src/context/bills/bills.controller.ts"
+      ],
+      "acceptance_criteria": [
+        "Controller uses @ApiTags('Bills') decorator",
+        "Controller uses @Controller('api/v1/bills') decorator",
+        "GET /api/v1/bills endpoint accepts FindBillsDto query parameters",
+        "GET endpoint returns PaginatedResponse<BillResponseDto>",
+        "GET endpoint extracts tenantId from request.tenant?.id",
+        "GET endpoint throws UnauthorizedException if tenantId is missing",
+        "GET endpoint uses @ApiOperation() with summary and description",
+        "GET endpoint uses @ApiResponse() decorators for 200, 400, 401, 403 status codes",
+        "GET endpoint uses @ApiBearerAuth('OAuth2') and @ApiSecurity('ApiKey') decorators",
+        "Controller has private readonly logger = new Logger(BillsController.name)",
+        "Controller logs operation start with tenantId and correlationId"
+      ],
+      "passes": true
+    },
+    {
+      "id": "BILLS-03",
+      "description": "Create BillsController with GET /api/v1/bills/:id endpoint",
+      "files_to_touch": [
+        "src/context/bills/bills.controller.ts"
+      ],
+      "acceptance_criteria": [
+        "GET /api/v1/bills/:id endpoint accepts id as path parameter",
+        "GET endpoint uses @ApiParam() decorator with name 'id' and description",
+        "GET endpoint returns BillResponseDto",
+        "GET endpoint throws NotFoundException if bill not found",
+        "GET endpoint throws UnauthorizedException if tenantId is missing",
+        "GET endpoint validates tenant has access to the bill (tenant isolation)",
+        "GET endpoint uses @ApiResponse() decorators for 200, 404, 401, 403 status codes",
+        "Controller logs bill retrieval with billId, tenantId, and correlationId"
+      ],
+      "passes": true
+    },
+    {
+      "id": "BILLS-04",
+      "description": "Create BillsController with POST /api/v1/bills endpoint",
+      "files_to_touch": [
+        "src/context/bills/bills.controller.ts"
+      ],
+      "acceptance_criteria": [
+        "POST /api/v1/bills endpoint accepts CreateBillDto in request body",
+        "POST endpoint returns BillResponseDto with status 201",
+        "POST endpoint uses @HttpCode(HttpStatus.CREATED) decorator",
+        "POST endpoint extracts tenantId from request.tenant?.id",
+        "POST endpoint throws UnauthorizedException if tenantId is missing",
+        "POST endpoint uses @ApiBody() decorator with type CreateBillDto",
+        "POST endpoint uses @ApiResponse() decorators for 201, 400, 401, 403, 409 status codes",
+        "POST endpoint supports idempotency via X-Idempotency-Key header",
+        "Controller logs bill creation with invoiceNumber, tenantId, and correlationId"
+      ],
+      "passes": true
+    },
+    {
+      "id": "BILLS-05",
+      "description": "Create BillsController with PATCH /api/v1/bills/:id endpoint",
+      "files_to_touch": [
+        "src/context/bills/bills.controller.ts"
+      ],
+      "acceptance_criteria": [
+        "PATCH /api/v1/bills/:id endpoint accepts id and UpdateBillDto in request body",
+        "PATCH endpoint returns BillResponseDto",
+        "PATCH endpoint throws NotFoundException if bill not found",
+        "PATCH endpoint throws UnauthorizedException if tenantId is missing",
+        "PATCH endpoint validates tenant has access to the bill",
+        "PATCH endpoint uses @ApiParam() and @ApiBody() decorators",
+        "PATCH endpoint uses @ApiResponse() decorators for 200, 400, 401, 403, 404 status codes",
+        "Controller logs bill update with billId, tenantId, and correlationId"
+      ],
+      "passes": true
+    },
+    {
+      "id": "BILLS-06",
+      "description": "Create BillsService with findAll method implementing pagination and filtering",
+      "files_to_touch": [
+        "src/shared/context/bills/bills.service.ts"
+      ],
+      "acceptance_criteria": [
+        "findAll method accepts FindBillsDto and tenantId parameters",
+        "findAll method returns PaginatedResponse<BillResponseDto>",
+        "findAll method implements pagination with skip = (page - 1) * limit",
+        "findAll method filters by invoiceNumber if provided in FindBillsDto",
+        "findAll method filters by vendorName if provided in FindBillsDto",
+        "findAll method filters by invoiceStatus if provided in FindBillsDto",
+        "findAll method filters by poNumber if provided in FindBillsDto",
+        "findAll method enforces tenant isolation (only returns bills for tenantId)",
+        "findAll method uses TypeORM findAndCount with proper where clause",
+        "Service has private readonly logger = new Logger(BillsService.name)",
+        "Service logs query execution with filter parameters and tenantId"
+      ],
+      "passes": true
+    },
+    {
+      "id": "BILLS-07",
+      "description": "Create BillsService with findOne method",
+      "files_to_touch": [
+        "src/shared/context/bills/bills.service.ts"
+      ],
+      "acceptance_criteria": [
+        "findOne method accepts id and tenantId parameters",
+        "findOne method returns BillResponseDto",
+        "findOne method throws NotFoundException if bill not found",
+        "findOne method enforces tenant isolation (validates bill belongs to tenantId)",
+        "findOne method uses TypeORM findOne with where clause including tenantId",
+        "Service logs bill retrieval with id and tenantId"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-08",
+      "description": "Create BillsService with create method and idempotency support",
+      "files_to_touch": [
+        "src/shared/context/bills/bills.service.ts"
+      ],
+      "acceptance_criteria": [
+        "create method accepts CreateBillDto, tenantId, and idempotencyKey parameters",
+        "create method checks for existing bill with idempotencyKey before creating",
+        "create method returns cached BillResponseDto if idempotencyKey exists",
+        "create method validates required fields: billInfo.invoiceNumber, billInfo.invoiceDate, vendor.vendorName, lineItems array",
+        "create method validates lineItems array has at least one item",
+        "create method validates each lineItem has required fields: productNumber, productDescription, catalogCode, quantity, productSell",
+        "create method saves bill to database with tenantId",
+        "create method stores idempotency response if idempotencyKey provided",
+        "create method throws ConflictException if duplicate invoiceNumber exists for tenant",
+        "Service logs bill creation with invoiceNumber, tenantId, and idempotencyKey"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-09",
+      "description": "Create BillsService with update method",
+      "files_to_touch": [
+        "src/shared/context/bills/bills.service.ts"
+      ],
+      "acceptance_criteria": [
+        "update method accepts id, UpdateBillDto, and tenantId parameters",
+        "update method throws NotFoundException if bill not found",
+        "update method enforces tenant isolation (validates bill belongs to tenantId)",
+        "update method updates only provided fields (partial update)",
+        "update method validates updated lineItems if provided",
+        "update method sets updatedAt timestamp",
+        "update method returns updated BillResponseDto",
+        "Service logs bill update with id, tenantId, and updated fields"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-10",
+      "description": "Create BillsModule with proper imports and exports",
+      "files_to_touch": [
+        "src/context/bills/bills.module.ts"
+      ],
+      "acceptance_criteria": [
+        "Module imports TypeOrmModule.forFeature([Bill]) using default connection",
+        "Module imports HttpModule for external service calls",
+        "Module imports ConfigModule for environment variables",
+        "Module imports IdempotencyModule if idempotency service exists",
+        "Module provides BillsService and BillsController",
+        "Module exports BillsService if used by other modules",
+        "Module follows NestJS module structure pattern"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-11",
+      "description": "Create Bill entity mapping to database schema",
+      "files_to_touch": [
+        "src/context/bills/entities/bill.entity.ts"
+      ],
+      "acceptance_criteria": [
+        "Bill entity uses @Entity('bills') decorator",
+        "Bill entity has @PrimaryGeneratedColumn('uuid') id field",
+        "Bill entity stores bill data as JSONB column matching bill_schema.json structure",
+        "Bill entity has tenantId column with @Column() decorator",
+        "Bill entity has createdAt and updatedAt timestamps with @CreateDateColumn() and @UpdateDateColumn()",
+        "Bill entity has @Index(['tenantId']) for query performance",
+        "Bill entity has @Index(['tenantId', 'invoiceNumber']) for unique invoice lookup",
+        "Entity follows TypeORM patterns from project standards"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-12",
+      "description": "Implement error handling with standardized error responses",
+      "files_to_touch": [
+        "src/shared/context/bills/bills.service.ts",
+        "src/context/bills/bills.controller.ts"
+      ],
+      "acceptance_criteria": [
+        "All service methods use try-catch blocks",
+        "Service methods log errors with logger.error() including stack trace",
+        "Service methods re-throw HTTP exceptions (BadRequestException, NotFoundException, etc.)",
+        "Service methods wrap unknown errors in BadRequestException with generic message",
+        "Controller methods catch and re-throw service exceptions",
+        "Error responses include statusCode, error, message, timestamp, and correlationId",
+        "Error responses never expose sensitive information or stack traces",
+        "Validation errors return 400 with detailed field-level error messages"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-13",
+      "description": "Add structured logging with correlation IDs",
+      "files_to_touch": [
+        "src/shared/context/bills/bills.service.ts",
+        "src/context/bills/bills.controller.ts"
+      ],
+      "acceptance_criteria": [
+        "All log entries use JSON.stringify() format",
+        "All log entries include event, tenantId, correlationId, and timestamp fields",
+        "Log entries include operation-specific fields: invoiceNumber, billId, action",
+        "Log entries never include sensitive data (passwords, tokens, PII)",
+        "Service logs include method entry with parameters",
+        "Service logs include method exit with result summary",
+        "Error logs include error message and stack trace",
+        "Log levels used: logger.log() for operations, logger.error() for errors, logger.debug() for detailed debugging"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-14",
+      "description": "Create unit tests for BillsService",
+      "files_to_touch": [
+        "src/shared/context/bills/bills.service.spec.ts"
+      ],
+      "acceptance_criteria": [
+        "Test file uses describe('BillsService') structure",
+        "Tests mock TypeORM repository using useValue pattern",
+        "Tests mock IdempotencyService if used",
+        "Test findAll returns paginated results with correct structure",
+        "Test findAll filters by invoiceNumber correctly",
+        "Test findAll enforces tenant isolation",
+        "Test findOne returns bill when found",
+        "Test findOne throws NotFoundException when bill not found",
+        "Test findOne enforces tenant isolation",
+        "Test create saves bill with correct data",
+        "Test create returns cached response for duplicate idempotencyKey",
+        "Test create throws ConflictException for duplicate invoiceNumber",
+        "Test create validates required fields",
+        "Test update updates only provided fields",
+        "Test update throws NotFoundException when bill not found",
+        "All tests use beforeEach() to setup mocks",
+        "All tests are independent and can run in any order"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-15",
+      "description": "Create E2E tests for Bills API endpoints",
+      "files_to_touch": [
+        "test/bills.e2e-spec.ts"
+      ],
+      "acceptance_criteria": [
+        "E2E test file uses describe('Bills API (e2e') structure",
+        "Tests use Supertest for HTTP assertions",
+        "Test POST /api/v1/bills creates bill with valid data",
+        "Test POST /api/v1/bills returns 400 for invalid data",
+        "Test POST /api/v1/bills returns 401 without authentication",
+        "Test POST /api/v1/bills supports idempotency with X-Idempotency-Key header",
+        "Test GET /api/v1/bills returns paginated list",
+        "Test GET /api/v1/bills filters by invoiceNumber query parameter",
+        "Test GET /api/v1/bills/:id returns bill when found",
+        "Test GET /api/v1/bills/:id returns 404 when not found",
+        "Test GET /api/v1/bills/:id enforces tenant isolation",
+        "Test PATCH /api/v1/bills/:id updates bill",
+        "Test PATCH /api/v1/bills/:id returns 404 when not found",
+        "All tests use test tenant credentials (x-api-key and x-api-secret)",
+        "All tests clean up created test data"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-16",
+      "description": "Add OpenAPI/Swagger documentation for Bills endpoints",
+      "files_to_touch": [
+        "src/context/bills/bills.controller.ts"
+      ],
+      "acceptance_criteria": [
+        "All endpoints have @ApiOperation() with summary and description",
+        "All endpoints have @ApiResponse() decorators for all possible status codes",
+        "Request DTOs documented with @ApiBody() decorator",
+        "Path parameters documented with @ApiParam() decorator",
+        "Query parameters documented with @ApiQuery() decorator",
+        "Response types specified in @ApiResponse() type parameter",
+        "Authentication requirements documented with @ApiBearerAuth() and @ApiSecurity()",
+        "Example request/response bodies included in documentation",
+        "Error response formats documented with examples"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-17",
+      "description": "Implement tenant isolation validation",
+      "files_to_touch": [
+        "src/shared/context/bills/bills.service.ts"
+      ],
+      "acceptance_criteria": [
+        "All service methods validate tenantId parameter is provided",
+        "All database queries include tenantId in where clause",
+        "findOne method throws NotFoundException if bill belongs to different tenant",
+        "update method throws NotFoundException if bill belongs to different tenant",
+        "Service never returns bills from other tenants",
+        "Service logs tenant isolation violations as warnings",
+        "Tenant isolation enforced at database query level, not just application level"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-18",
+      "description": "Add validation for bill schema compliance",
+      "files_to_touch": [
+        "src/shared/context/bills/bills.service.ts",
+        "src/context/bills/dto/create-bill.dto.ts"
+      ],
+      "acceptance_criteria": [
+        "create method validates billInfo.invoiceNumber is non-empty string",
+        "create method validates billInfo.invoiceDate is valid date format",
+        "create method validates vendor.vendorName is non-empty string",
+        "create method validates lineItems array has at least one item",
+        "create method validates each lineItem has required fields",
+        "create method validates lineItem.quantity is number >= 1",
+        "create method validates lineItem.productSell is number >= 0",
+        "create method validates lineItem discounts are 0-100 range",
+        "create method validates invoiceStatus enum values if provided",
+        "Validation errors return 400 with field-level error messages"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-19",
+      "description": "Register BillsModule in AppModule",
+      "files_to_touch": [
+        "src/app.module.ts"
+      ],
+      "acceptance_criteria": [
+        "BillsModule imported in AppModule imports array",
+        "Module registration follows existing pattern in AppModule",
+        "No circular dependencies introduced"
+      ],
+      "passes": false
+    },
+    {
+      "id": "BILLS-20",
+      "description": "Update reference documentation with Bills API details",
+      "files_to_touch": [
+        "docs/reference/api_endpoints.md"
+      ],
+      "acceptance_criteria": [
+        "Documentation includes GET /api/v1/bills endpoint with request/response examples",
+        "Documentation includes GET /api/v1/bills/:id endpoint with examples",
+        "Documentation includes POST /api/v1/bills endpoint with request body example",
+        "Documentation includes PATCH /api/v1/bills/:id endpoint with examples",
+        "Documentation includes pagination parameters and response format",
+        "Documentation includes filter parameters and usage",
+        "Documentation includes error response formats",
+        "Documentation includes authentication requirements",
+        "Documentation references bill_schema.json for data structure"
       ],
       "passes": false
     }

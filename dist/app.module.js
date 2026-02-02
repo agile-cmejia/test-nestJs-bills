@@ -16,6 +16,7 @@ const nestjs_pino_1 = require("nestjs-pino");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const entities_module_1 = require("./context/entities/entities.module");
+const bills_module_1 = require("./context/bills/bills.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer.apply(correlation_id_middleware_1.CorrelationIdMiddleware).forRoutes('*');
@@ -27,6 +28,7 @@ AppModule = __decorate([
             typeorm_1.TypeOrmModule.forRoot(PostgresDataSource_1.appPostgresDataSource),
             nestjs_pino_1.LoggerModule.forRoot(pinoLoggerOptions_1.pinoOptions),
             entities_module_1.EntitiesModule,
+            bills_module_1.BillsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
