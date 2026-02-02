@@ -7,12 +7,14 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EntitiesModule } from './context/entities/entities.module';
+import { BillsModule } from './context/bills/bills.module';
 
 @Module({
   imports: [
     TypeOrmModule.forRoot(appPostgresDataSource),
     LoggerModule.forRoot(pinoOptions),
     EntitiesModule,
+    BillsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

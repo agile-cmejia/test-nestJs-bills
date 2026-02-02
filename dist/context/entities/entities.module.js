@@ -15,13 +15,9 @@ let EntitiesModule = class EntitiesModule {
 };
 EntitiesModule = __decorate([
     (0, common_1.Module)({
-        imports: [
-            typeorm_1.TypeOrmModule.forFeature([avanto_db_1.Tenant], avanto_shared_resources_1.dbConfig.name),
-        ],
+        imports: [typeorm_1.TypeOrmModule.forFeature([avanto_db_1.Tenant], avanto_shared_resources_1.dbConfig.name)],
         providers: [],
-        exports: [
-            typeorm_1.TypeOrmModule.forFeature([avanto_db_1.Tenant], avanto_shared_resources_1.dbConfig.name),
-        ],
+        exports: [typeorm_1.TypeOrmModule.forFeature([avanto_db_1.Tenant], avanto_shared_resources_1.dbConfig.name)],
     })
 ], EntitiesModule);
 exports.EntitiesModule = EntitiesModule;
