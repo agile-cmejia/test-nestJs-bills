@@ -1,207 +1,182 @@
 ---
-description: Database patterns, migrations, constraints, and data management standards
+description: Database entity management - ALL entities managed by AvantoDB only
 globs: 
 alwaysApply: true
 ---
 
 # Database Standards
 
-## Migration Management
+## ⚠️ CRITICAL: Entity Management Policy
 
-### Versioned Migrations
+**ALL database entities, schemas, and migrations are managed EXCLUSIVELY by `@avantodev/avanto-db`.**
 
-- **ALWAYS** use versioned migrations for schema changes
-- Use appropriate tools: TypeORM, Flyway, Alembic
-- **NEVER** modify existing migrations after applying them to production
-- **ALWAYS** include rollback scripts (up and down) in all migrations
-- Test migrations in staging before applying to production
+This repository:
+- ✅ **ONLY** updates the `@avantodev/avanto-db` dependency version
+- ✅ **ONLY** imports and uses entities from `@avantodev/avanto-db`
+- ❌ **NEVER** creates local entities (`@Entity` decorator)
+- ❌ **NEVER** runs migrations
+- ❌ **NEVER** modifies database schemas directly
 
-### Migration Best Practices
-
-- Each migration should be atomic (all or nothing)
-- Migrations should be reversible (include down migration)
-- Test migrations on a copy of production data
-- Document breaking changes in migration comments
-- Use descriptive migration names
+## Prohibited Actions
 
 ```typescript
-// ✅ CORRECT: TypeORM migration pattern
-import { MigrationInterface, QueryRunner } from 'typeorm';
+// ❌ FORBIDDEN: Creating entities in this repository
+@Entity('my_table')
+export class MyEntity {
+  // This is NOT allowed
+}
 
-export class AddUserEmailIndex1234567890 implements MigrationInterface {
-  public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.createIndex(
-      'user',
-      new TableIndex({
-        name: 'IDX_USER_EMAIL',
-        columnNames: ['email'],
-        isUnique: true,
-      }),
-    );
-  }
-
-  public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropIndex('user', 'IDX_USER_EMAIL');
-  }
+// ❌ FORBIDDEN: Creating migrations
+export class CreateMyTable1234567890 implements MigrationInterface {
+  // This is NOT allowed
 }
 ```
 
-## Database Schema Design
-
-### Documentation
-
-- **ALWAYS** document ER diagrams and database schemas
-- Keep schema documentation up-to-date with changes
-- Document relationships between entities
-- Include data dictionary with field descriptions
-
-### Normalization
-
-- **ALWAYS** normalize to reduce redundancy (generally 3NF)
-- Balance normalization with performance requirements
-- Denormalize only when necessary for performance
-- Document denormalization decisions
-
-### Constraints
-
-- **ALWAYS** use DB constraints for data integrity:
-  - `NOT NULL` for required fields
-  - `UNIQUE` for fields that must be unique
-  - `CHECK` for value validation
-  - `FOREIGN KEY` for referential integrity
-- Apply constraints at database level, not just application level
-- Use appropriate indexes on frequently queried columns
+## Correct Usage
 
 ```typescript
-// ✅ CORRECT: Entity with constraints
-import { Entity, Column, PrimaryGeneratedColumn, Index } from 'typeorm';
+// ✅ CORRECT: Import entities from avanto-db
+import { Tenant, User, RecordHeader } from '@avantodev/avanto-db';
 
-@Entity('user')
-@Index('IDX_USER_EMAIL', ['email'], { unique: true })
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ type: 'varchar', length: 255, nullable: false, unique: true })
-  email: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: false })
-  name: string;
-
-  @Column({ type: 'boolean', default: true, nullable: false })
-  isActive: boolean;
-}
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Tenant, User, RecordHeader]),
+  ],
+})
+export class YourModule {}
 ```
 
-## Data Validation
+## When Database Changes Are Needed
 
-- **ALWAYS** validate data at both application and database levels
-- Use database constraints as the last line of defense
-- Validate data types, formats, and business rules
-- Implement validation in DTOs using class-validator
+If you need to add or modify database entities/schemas:
 
-## Data Encryption
+### Step 1: Export Requirements Document
 
-- **ALWAYS** encrypt sensitive data before storing
-- Use application-level encryption for sensitive fields
-- Consider database-level encryption for at-rest protection
-- Never store passwords, tokens, or PII in plain text
+When the AI detects a database change requirement, it MUST:
 
-## Indexing Strategy
+1. Create a markdown file in `docs/database-requests/` with the specification
+2. Inform the user they need to implement changes in AvantoDB repository
+3. **NEVER** attempt to create entities or run migrations locally
 
-- **ALWAYS** use appropriate indexes on frequently queried columns
-- Index foreign keys for join performance
-- Index columns used in WHERE, ORDER BY, and JOIN clauses
-- Monitor index usage and remove unused indexes
-- Balance index benefits with write performance
+### Step 2: Document Format
 
-```typescript
-// ✅ CORRECT: Indexed entity
-@Entity('order')
-@Index('IDX_ORDER_USER_ID', ['userId'])
-@Index('IDX_ORDER_STATUS_DATE', ['status', 'createdAt'])
-export class Order {
-  @Column()
-  userId: string;
+The exported document should follow this template:
 
-  @Column()
-  status: string;
+```markdown
+# Database Change Request
 
-  @Column()
-  createdAt: Date;
-}
+## Date: YYYY-MM-DD
+## Requested By: [Feature/Ticket Name]
+
+## New Entity Required
+
+### Entity Name: `YourEntityName`
+
+### Table Name: `your_table_name`
+
+### Columns:
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| id | uuid | NO | uuid_generate_v4() | Primary key |
+| name | varchar(255) | NO | - | Entity name |
+| created_at | timestamp | NO | CURRENT_TIMESTAMP | Creation date |
+
+### Indexes:
+- `IDX_YOUR_TABLE_NAME` on `column_name` (unique: yes/no)
+
+### Relations:
+- `ManyToOne` to `Tenant` via `tenant_id`
+- `OneToMany` to `OtherEntity` via `your_entity_id`
+
+### Constraints:
+- `NOT NULL` on required fields
+- `FOREIGN KEY` to related tables
+
+## Migration Notes:
+- [Any special considerations for the migration]
 ```
 
-## Backup and Recovery
+### Step 3: User Action Required
 
-- **ALWAYS** implement daily backups with defined retention policies
-- **ALWAYS** test recovery procedures regularly
-- Store backups in separate, secure locations
-- Document backup and recovery procedures
-- Verify backup integrity regularly
-- Have a recent DB backup available before deployments
+After exporting the document, tell the user:
 
-## Microservice Database Management
+> **⚠️ Database Change Required**
+> 
+> I've exported the database requirements to `docs/database-requests/[filename].md`.
+> 
+> **Next steps:**
+> 1. Go to the `avanto-db` repository
+> 2. Create the entity following the specification
+> 3. Run migrations in avanto-db
+> 4. Publish a new version of `@avantodev/avanto-db`
+> 5. Return here and update the dependency: `yarn upgrade @avantodev/avanto-db@latest`
 
-- **ALWAYS** ensure each microservice manages its own database entities/schemas
-- Avoid shared databases between microservices
-- Use database per service pattern when possible
-- Document database ownership and access patterns
+## Updating AvantoDB Dependency
 
-## ORM Best Practices
+When a new version of avanto-db is available:
 
-- **ALWAYS** use ORMs (TypeORM, Sequelize, Mongoose) for object-relational mapping
-- Use ORM features for type safety and query building
-- Avoid raw SQL when ORM methods are available
-- Use transactions for multi-step operations
-- Load relations explicitly - avoid lazy loading in production
+```bash
+# Update to latest version
+yarn upgrade @avantodev/avanto-db@latest
 
-## Query Optimization
+# Or update to specific version
+yarn upgrade @avantodev/avanto-db@1.3.49
+```
 
-- **ALWAYS** optimize database queries with appropriate indexes
-- Use query builders for complex queries
-- Avoid N+1 query problems
-- Use pagination for large result sets
-- Monitor slow queries and optimize them
+Then register the new entity in `EntitiesModule`:
 
 ```typescript
-// ❌ WRONG: N+1 query problem
-const users = await this.userRepository.find();
-for (const user of users) {
-  const orders = await this.orderRepository.find({ where: { userId: user.id } });
-}
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Tenant, NewEntity } from '@avantodev/avanto-db';
 
-// ✅ CORRECT: Eager loading or batch query
-const users = await this.userRepository.find({
-  relations: ['orders'],
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Tenant, NewEntity]),
+  ],
+})
+export class EntitiesModule {}
+```
+
+## Query Optimization (Read-Only Patterns)
+
+Since we only read from the database schema:
+
+```typescript
+// ✅ CORRECT: Use repository methods
+const entity = await this.repository.findOne({
+  where: { id },
+  relations: ['tenant', 'createdBy'],
 });
-// Or use query builder for complex joins
+
+// ✅ CORRECT: Use query builder for complex queries
+const results = await this.repository
+  .createQueryBuilder('entity')
+  .leftJoinAndSelect('entity.tenant', 'tenant')
+  .where('entity.isActive = :isActive', { isActive: true })
+  .getMany();
+
+// ✅ CORRECT: Use transactions for multi-step reads
+await this.manager.transaction(async (transactionalEntityManager) => {
+  const entity = await transactionalEntityManager.findOne(Entity, { where: { id } });
+  // Process entity
+});
 ```
 
-## Database Checklist
+## Anti-Patterns (PROHIBITED)
 
-Before deploying database changes, ensure:
+1. ❌ **NEVER** create `@Entity()` decorated classes in this repository
+2. ❌ **NEVER** create migration files
+3. ❌ **NEVER** run `yarn migration:generate` or `yarn migration:create`
+4. ❌ **NEVER** run `yarn typeorm migration:run`
+5. ❌ **NEVER** modify database schemas directly via raw SQL
+6. ❌ **NEVER** use `synchronize: true` in production
+7. ❌ **NEVER** create TypeORM subscribers that modify schema
 
-- [ ] Migrations are versioned and tested
-- [ ] Rollback scripts are included
-- [ ] Migrations tested in staging
-- [ ] ER diagrams and schemas are documented
-- [ ] Constraints are properly defined
-- [ ] Indexes are created for frequently queried columns
-- [ ] Sensitive data is encrypted
-- [ ] Backup procedures are in place
-- [ ] Recovery procedures are tested
-- [ ] Recent backup is available
+## Checklist Before Any Database-Related Work
 
-## Anti-Patterns to Avoid
-
-1. ❌ **Don't** modify DB migrations already applied to production
-2. ❌ **Don't** skip database constraints
-3. ❌ **Don't** store sensitive data without encryption
-4. ❌ **Don't** create migrations without rollback scripts
-5. ❌ **Don't** skip testing migrations in staging
-6. ❌ **Don't** ignore slow queries
-7. ❌ **Don't** create unnecessary indexes
-8. ❌ **Don't** skip backup procedures
-9. ❌ **Don't** use raw SQL when ORM methods are available
-10. ❌ **Don't** ignore N+1 query problems
+- [ ] Is the entity already available in `@avantodev/avanto-db`?
+- [ ] If not, have I exported the requirements document?
+- [ ] Have I informed the user to modify avanto-db?
+- [ ] Am I only using imported entities, never creating new ones?
+- [ ] Am I only reading/writing data, never modifying schema?

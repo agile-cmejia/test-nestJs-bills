@@ -210,20 +210,40 @@ Access Swagger UI at: `http://localhost:3000/docs`
 
 ### Database Connection
 
-The skeleton uses TypeORM with PostgreSQL. Entities are loaded from `@avantodev/avanto-db`:
+The skeleton uses TypeORM with PostgreSQL. **All entities are managed exclusively by `@avantodev/avanto-db`.**
+
+#### ⚠️ Important: Entity Management Policy
+
+| Action | Allowed? |
+|--------|----------|
+| Import entities from `@avantodev/avanto-db` | ✅ Yes |
+| Update `@avantodev/avanto-db` dependency | ✅ Yes |
+| Create local `@Entity()` classes | ❌ **PROHIBITED** |
+| Run migrations | ❌ **PROHIBITED** |
+| Modify database schemas | ❌ **PROHIBITED** |
+
+#### Using Entities
 
 ```typescript
-// Entities are auto-loaded from the shared library
-import { Tenant } from '@avantodev/avanto-db';
+// ✅ CORRECT: Import entities from avanto-db
+import { Tenant, User } from '@avantodev/avanto-db';
 
-// Use in your modules
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Tenant, YourEntity], dbConfig.name),
+    TypeOrmModule.forFeature([Tenant, User]),
   ],
 })
 export class YourModule {}
 ```
+
+#### When You Need New Database Entities
+
+1. The AI exports requirements to `docs/database-requests/`
+2. Implement the entity in the `avanto-db` repository
+3. Publish a new version of `@avantodev/avanto-db`
+4. Update the dependency: `yarn upgrade @avantodev/avanto-db@latest`
+
+See `.cursor/rules/database-standards.mdc` for full details.
 
 ### Structured Logging
 
@@ -665,8 +685,6 @@ export class AppModule implements NestModule {
 | `yarn lint` | Run linter |
 | `yarn format` | Format code |
 | `yarn pretty:lint` | Format and lint |
-| `yarn migration:generate` | Generate TypeORM migration |
-| `yarn migration:create` | Create empty migration |
 
 ## Contributing
 
