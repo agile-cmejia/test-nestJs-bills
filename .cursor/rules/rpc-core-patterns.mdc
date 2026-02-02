@@ -1,0 +1,275 @@
+---
+description: RPC Core specific patterns for translation, mapping, idempotency, and microservice communication
+globs: "src/context/rpc-core/**/*.ts"
+alwaysApply: true
+---
+
+# RPC Core Patterns
+
+## Translation Layer
+
+### Translation Service Pattern
+
+- **ALWAYS** use `TranslationService` to orchestrate translation between COR ERP format and OrderBahn format
+- Translation happens in two directions:
+  - **Inbound**: COR ERP PO → OrderBahn RecordHeader (via `PoToRecordMapper`)
+  - **Outbound**: OrderBahn RecordHeader → COR ERP PO (via `RecordToPoMapper`)
+- **ALWAYS** log translation operations for debugging
+
+```typescript
+// ✅ CORRECT: Translation service usage
+async translatePoToRecord(po: CreatePurchaseOrderDto, tenantId: number): Promise<ICreateRecordHeaderDto> {
+  this.logger.log(`Translating PO ${po.poInfo.poNumber} to RecordHeader for tenant ${tenantId}`);
+  
+  try {
+    const recordHeader = this.poToRecordMapper.mapToRecordHeader(po, tenantId);
+    this.logger.debug(`Translation successful`);
+    return recordHeader;
+  } catch (error) {
+    this.logger.error(`Translation failed: ${error.message}`, error.stack);
+    throw new Error(`Failed to translate Purchase Order: ${error.message}`);
+  }
+}
+```
+
+## Field Mapping
+
+### Field Name Mapping Pattern
+
+- **ALWAYS** use field name mappings from `field-name-mappings.config.ts` for no-code configuration
+- Field mappings map COR ERP field names to OrderBahn field names
+- Use `FieldNameMatcher` utility for fuzzy matching
+- Support multiple aliases per field
+
+```typescript
+// ✅ CORRECT: Field name mapping
+import { FIELD_NAME_MAPPINGS, getFieldNameAliases } from '../config/field-name-mappings.config';
+
+// Map "PO Date" to "Date Ordered" or "PO Date" or "Purchase Order Date"
+const aliases = getFieldNameAliases('PO Date');
+// Returns: ['Date Ordered', 'PO Date', 'Purchase Order Date']
+```
+
+### Field Name Matcher
+
+- Use `FieldNameMatcher` for fuzzy matching when exact match fails
+- Supports case-insensitive matching and partial matches
+- Returns best match or null if no match found
+
+## Idempotency
+
+### Idempotency Service Pattern
+
+- **ALWAYS** check for idempotency before processing requests
+- Extract idempotency key from (priority order):
+  1. `X-Idempotency-Key` header (explicit client key)
+  2. `clientOrderId` field (client's order identifier)
+  3. PO Number (fallback - natural business identifier)
+- **ALWAYS** store responses with idempotency key for 24 hours (configurable TTL)
+- Return cached response if duplicate detected
+
+```typescript
+// ✅ CORRECT: Idempotency pattern
+async createPurchaseOrder(dto: CreatePurchaseOrderDto, tenantId: number, request: any) {
+  // Extract idempotency key
+  const idempotencyKey = this.idempotencyService.extractKey(request, dto);
+  
+  if (idempotencyKey) {
+    // Check for existing response
+    const existing = await this.idempotencyService.checkExisting(idempotencyKey, tenantId);
+    if (existing) {
+      this.logger.log(`Returning cached response for idempotency key: ${idempotencyKey}`);
+      return existing.responseBody; // Return cached response
+    }
+  }
+  
+  // ... process request ...
+  
+  // Store response for future duplicate requests
+  if (idempotencyKey) {
+    await this.idempotencyService.storeResponse(idempotencyKey, tenantId, response, 201);
+  }
+  
+  return response;
+}
+```
+
+## Microservice Communication
+
+### Client Service Pattern
+
+- **ALWAYS** create separate client services for each microservice
+- Use `HttpService` from `@nestjs/axios` for HTTP calls
+- **ALWAYS** include proper headers:
+  - `userId` or `x-user-id` - Required by batch endpoints
+  - `role_id` - Required by v2/many and v3/many endpoints
+  - `Authorization: Bearer <token>` OR `x-api-key` + `x-api-secret`
+- **ALWAYS** handle timeouts (60 seconds default)
+- **ALWAYS** convert HTTP errors to appropriate exceptions
+
+```typescript
+// ✅ CORRECT: Client service pattern
+@Injectable()
+export class RecordGridClientService {
+  private readonly baseUrl: string;
+
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.baseUrl = this.configService.get<string>('RECORDS_GRID_MS_URL') || 'http://localhost:4001/';
+  }
+
+  async createRecord(data: ICreateRecordHeaderDto, tenantId: number, headers?: any): Promise<IRecordHeader> {
+    const userId = headers?.userId || headers?.['x-user-id'] || '1';
+    const roleId = headers?.role_id || '1';
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post<IRecordHeader>(
+          `${this.baseUrl}record-headers`,
+          {
+            tenant: tenantId,
+            recordType: data.recordTypeId,
+            // ... data
+          },
+          { headers: { ...headers, userId, role_id: roleId } },
+        ),
+      );
+      return response.data;
+    } catch (error) {
+      if (error.response) {
+        throw new HttpException(error.response.data, error.response.status);
+      }
+      throw new ServiceUnavailableException('Microservice unavailable');
+    }
+  }
+}
+```
+
+### API Headers Helper
+
+- **ALWAYS** use `getApiHeaders()` helper method to build headers for microservice calls
+- Supports both OAuth Bearer tokens and API key/secret
+- Priority: OAuth token > API key/secret
+
+```typescript
+// ✅ CORRECT: API headers helper
+private getApiHeaders(request?: any): any {
+  if (!request?.tenant) {
+    return {};
+  }
+
+  const tenant = request.tenant;
+  const userId = request.user?.id || '1';
+  const roleId = request.role?.id || '1';
+  const oauthToken = request.oauthToken || request.headers?.['authorization']?.replace('Bearer ', '');
+
+  const headers: any = {
+    userId: String(userId),
+    'x-user-id': String(userId),
+    role_id: String(roleId),
+  };
+
+  // Use OAuth token if available, otherwise fall back to API key/secret
+  if (oauthToken) {
+    headers['Authorization'] = `Bearer ${oauthToken}`;
+  } else {
+    headers['x-api-key'] = tenant.apiKey || '';
+    headers['x-api-secret'] = tenant.apiSecret || '';
+  }
+
+  return headers;
+}
+```
+
+## Record Type IDs
+
+### Record Type Constants
+
+- **ALWAYS** use constants for record type IDs
+- Purchase Order: `30`
+- Acknowledgment: `7`
+- Shipping Notice: Check current implementation
+
+```typescript
+// ✅ CORRECT: Record type constants
+private readonly PURCHASE_ORDER_RECORD_TYPE_ID = 30;
+private readonly ACKNOWLEDGMENT_RECORD_TYPE_ID = 7;
+```
+
+## List Value Mapping
+
+### List Value Resolution
+
+- **ALWAYS** use `ListValuesClientService` to resolve list value IDs
+- Database stores list values as IDs, not text
+- API may send text values that need to be converted to IDs
+- **ALWAYS** validate list value exists before using
+
+```typescript
+// ✅ CORRECT: List value resolution
+const listValueId = await this.listValuesClient.findListValueId(
+  listTypeId,
+  textValue,
+  tenantId,
+  headers,
+);
+
+if (!listValueId) {
+  throw new BadRequestException(`List value "${textValue}" not found for list type ${listTypeId}`);
+}
+```
+
+## Field Validation
+
+### Field Validator Pattern
+
+- **ALWAYS** validate field names exist before storing in `additionalFields`
+- Use `FieldValidatorService` to check field existence
+- Prevents data leaking (storing non-existent fields)
+- **ALWAYS** validate before mapping operations
+
+```typescript
+// ✅ CORRECT: Field validation
+const isValid = await this.fieldValidator.validateField(fieldName, recordTypeId, tenantId, headers);
+
+if (!isValid) {
+  this.logger.warn(`Field "${fieldName}" does not exist for record type ${recordTypeId}. Skipping.`);
+  continue; // Skip invalid fields
+}
+```
+
+## Feature Flags
+
+### Tenant Feature Flag Pattern
+
+- **ALWAYS** use `TenantFeatureFlagService` for tenant-based feature routing
+- Allows different tenants to use different implementations
+- Check feature flags before executing tenant-specific logic
+
+```typescript
+// ✅ CORRECT: Feature flag usage
+const useNewImplementation = await this.tenantFeatureFlagService.shouldUseNewImplementation(tenantId);
+
+if (useNewImplementation) {
+  return await this.newImplementation();
+} else {
+  return await this.legacyImplementation();
+}
+```
+
+## RPC Core Checklist
+
+Before implementing RPC Core features, ensure:
+
+- [ ] Translation service is used for format conversion
+- [ ] Field name mappings are used for no-code configuration
+- [ ] Idempotency is checked before processing
+- [ ] Client services include proper headers (userId, role_id, auth)
+- [ ] Record type IDs use constants
+- [ ] List values are resolved to IDs before storing
+- [ ] Fields are validated before storing in additionalFields
+- [ ] Feature flags are checked for tenant-specific routing
+- [ ] All microservice calls handle errors and timeouts
+- [ ] API headers helper is used for consistent header building

@@ -1,0 +1,207 @@
+---
+description: Database patterns, migrations, constraints, and data management standards
+globs: 
+alwaysApply: true
+---
+
+# Database Standards
+
+## Migration Management
+
+### Versioned Migrations
+
+- **ALWAYS** use versioned migrations for schema changes
+- Use appropriate tools: TypeORM, Flyway, Alembic
+- **NEVER** modify existing migrations after applying them to production
+- **ALWAYS** include rollback scripts (up and down) in all migrations
+- Test migrations in staging before applying to production
+
+### Migration Best Practices
+
+- Each migration should be atomic (all or nothing)
+- Migrations should be reversible (include down migration)
+- Test migrations on a copy of production data
+- Document breaking changes in migration comments
+- Use descriptive migration names
+
+```typescript
+// ✅ CORRECT: TypeORM migration pattern
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class AddUserEmailIndex1234567890 implements MigrationInterface {
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.createIndex(
+      'user',
+      new TableIndex({
+        name: 'IDX_USER_EMAIL',
+        columnNames: ['email'],
+        isUnique: true,
+      }),
+    );
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.dropIndex('user', 'IDX_USER_EMAIL');
+  }
+}
+```
+
+## Database Schema Design
+
+### Documentation
+
+- **ALWAYS** document ER diagrams and database schemas
+- Keep schema documentation up-to-date with changes
+- Document relationships between entities
+- Include data dictionary with field descriptions
+
+### Normalization
+
+- **ALWAYS** normalize to reduce redundancy (generally 3NF)
+- Balance normalization with performance requirements
+- Denormalize only when necessary for performance
+- Document denormalization decisions
+
+### Constraints
+
+- **ALWAYS** use DB constraints for data integrity:
+  - `NOT NULL` for required fields
+  - `UNIQUE` for fields that must be unique
+  - `CHECK` for value validation
+  - `FOREIGN KEY` for referential integrity
+- Apply constraints at database level, not just application level
+- Use appropriate indexes on frequently queried columns
+
+```typescript
+// ✅ CORRECT: Entity with constraints
+import { Entity, Column, PrimaryGeneratedColumn, Index } from 'typeorm';
+
+@Entity('user')
+@Index('IDX_USER_EMAIL', ['email'], { unique: true })
+export class User {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: false, unique: true })
+  email: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: false })
+  name: string;
+
+  @Column({ type: 'boolean', default: true, nullable: false })
+  isActive: boolean;
+}
+```
+
+## Data Validation
+
+- **ALWAYS** validate data at both application and database levels
+- Use database constraints as the last line of defense
+- Validate data types, formats, and business rules
+- Implement validation in DTOs using class-validator
+
+## Data Encryption
+
+- **ALWAYS** encrypt sensitive data before storing
+- Use application-level encryption for sensitive fields
+- Consider database-level encryption for at-rest protection
+- Never store passwords, tokens, or PII in plain text
+
+## Indexing Strategy
+
+- **ALWAYS** use appropriate indexes on frequently queried columns
+- Index foreign keys for join performance
+- Index columns used in WHERE, ORDER BY, and JOIN clauses
+- Monitor index usage and remove unused indexes
+- Balance index benefits with write performance
+
+```typescript
+// ✅ CORRECT: Indexed entity
+@Entity('order')
+@Index('IDX_ORDER_USER_ID', ['userId'])
+@Index('IDX_ORDER_STATUS_DATE', ['status', 'createdAt'])
+export class Order {
+  @Column()
+  userId: string;
+
+  @Column()
+  status: string;
+
+  @Column()
+  createdAt: Date;
+}
+```
+
+## Backup and Recovery
+
+- **ALWAYS** implement daily backups with defined retention policies
+- **ALWAYS** test recovery procedures regularly
+- Store backups in separate, secure locations
+- Document backup and recovery procedures
+- Verify backup integrity regularly
+- Have a recent DB backup available before deployments
+
+## Microservice Database Management
+
+- **ALWAYS** ensure each microservice manages its own database entities/schemas
+- Avoid shared databases between microservices
+- Use database per service pattern when possible
+- Document database ownership and access patterns
+
+## ORM Best Practices
+
+- **ALWAYS** use ORMs (TypeORM, Sequelize, Mongoose) for object-relational mapping
+- Use ORM features for type safety and query building
+- Avoid raw SQL when ORM methods are available
+- Use transactions for multi-step operations
+- Load relations explicitly - avoid lazy loading in production
+
+## Query Optimization
+
+- **ALWAYS** optimize database queries with appropriate indexes
+- Use query builders for complex queries
+- Avoid N+1 query problems
+- Use pagination for large result sets
+- Monitor slow queries and optimize them
+
+```typescript
+// ❌ WRONG: N+1 query problem
+const users = await this.userRepository.find();
+for (const user of users) {
+  const orders = await this.orderRepository.find({ where: { userId: user.id } });
+}
+
+// ✅ CORRECT: Eager loading or batch query
+const users = await this.userRepository.find({
+  relations: ['orders'],
+});
+// Or use query builder for complex joins
+```
+
+## Database Checklist
+
+Before deploying database changes, ensure:
+
+- [ ] Migrations are versioned and tested
+- [ ] Rollback scripts are included
+- [ ] Migrations tested in staging
+- [ ] ER diagrams and schemas are documented
+- [ ] Constraints are properly defined
+- [ ] Indexes are created for frequently queried columns
+- [ ] Sensitive data is encrypted
+- [ ] Backup procedures are in place
+- [ ] Recovery procedures are tested
+- [ ] Recent backup is available
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** modify DB migrations already applied to production
+2. ❌ **Don't** skip database constraints
+3. ❌ **Don't** store sensitive data without encryption
+4. ❌ **Don't** create migrations without rollback scripts
+5. ❌ **Don't** skip testing migrations in staging
+6. ❌ **Don't** ignore slow queries
+7. ❌ **Don't** create unnecessary indexes
+8. ❌ **Don't** skip backup procedures
+9. ❌ **Don't** use raw SQL when ORM methods are available
+10. ❌ **Don't** ignore N+1 query problems

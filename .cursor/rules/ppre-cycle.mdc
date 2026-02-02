@@ -1,0 +1,27 @@
+---
+description: PPRE execution cycle and context reset rules
+globs: "*"
+alwaysApply: true
+---
+
+# PPRE Execution Cycle
+
+## Phases
+
+1. PRIME: Load story + reference docs.
+2. PLAN: Propose implementation and checklist.
+3. RESET: Clear context to restore precision.
+4. EXECUTE: Implement only the approved plan.
+
+## Kill Switch (Context Reset)
+
+- Always reset between PLAN and EXECUTE.
+- Execute with only the plan and the active file context.
+- Avoid exploring unrelated files during EXECUTE.
+
+## Non-Negotiables
+
+- No code changes without a PLAN.
+- EXECUTE is deterministic; no new scope discovery.
+- If new scope is discovered, return to PRIME + PLAN.
+

@@ -1,0 +1,197 @@
+---
+description: TypeScript code formatting, linting, and style standards for RPC Core
+globs: "src/**/*.ts"
+alwaysApply: true
+---
+
+# TypeScript Code Formatting Standards
+
+## Prettier Configuration
+
+### Formatting Rules
+
+- **ALWAYS** use Prettier for code formatting
+- Configured in `.prettierrc`:
+  - `semi: true` - Use semicolons
+  - `trailingComma: "all"` - Trailing commas everywhere
+  - `singleQuote: true` - Use single quotes
+  - `printWidth: 120` - Line length 120 characters
+  - `tabWidth: 2` - 2 spaces for indentation
+
+```json
+// ✅ CORRECT: .prettierrc
+{
+  "semi": true,
+  "trailingComma": "all",
+  "singleQuote": true,
+  "printWidth": 120,
+  "tabWidth": 2
+}
+```
+
+### Formatting Commands
+
+- Format code: `yarn format` or `yarn pretty:lint`
+- Format on save: Configured in VS Code settings
+- Pre-commit hook: Lint-staged runs Prettier automatically
+
+## ESLint Configuration
+
+### Linting Rules
+
+- **ALWAYS** use ESLint with TypeScript parser
+- Configured in `.eslintrc.js`:
+  - TypeScript ESLint plugin
+  - Prettier integration
+  - Relaxed rules for `any` types (project allows `any`)
+
+```javascript
+// ✅ CORRECT: .eslintrc.js
+module.exports = {
+  parser: '@typescript-eslint/parser',
+  extends: [
+    'plugin:@typescript-eslint/recommended',
+    'plugin:prettier/recommended',
+  ],
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'off', // Project allows any
+    '@typescript-eslint/explicit-function-return-type': 'off',
+    'prettier/prettier': ['error', { endOfLine: 'auto' }],
+  },
+};
+```
+
+## Import Organization
+
+### Import Order
+
+- Group imports in this order:
+  1. NestJS core imports (`@nestjs/common`, `@nestjs/core`)
+  2. NestJS feature imports (`@nestjs/axios`, `@nestjs/typeorm`, `@nestjs/swagger`)
+  3. Third-party imports (`rxjs`, `class-validator`, `class-transformer`)
+  4. Local imports (relative paths)
+- Sort imports alphabetically within groups
+
+```typescript
+// ✅ CORRECT: Import organization
+// NestJS core
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+
+// NestJS features
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+
+// Third-party
+import { firstValueFrom } from 'rxjs';
+import { Repository } from 'typeorm';
+
+// Local imports
+import { CreatePurchaseOrderDto } from '../dto';
+import { TranslationService } from './translation.service';
+```
+
+## TypeScript Configuration
+
+### Type Safety
+
+- Project uses relaxed TypeScript settings:
+  - `strictNullChecks: false`
+  - `noImplicitAny: false`
+- **ALWAYS** use explicit return types for public methods
+- Use `any` sparingly - prefer `unknown` if type is truly unknown
+
+```typescript
+// ✅ CORRECT: Explicit return types
+async createPurchaseOrder(
+  dto: CreatePurchaseOrderDto,
+  tenantId: number,
+): Promise<PurchaseOrderResponseDto> {
+  // Implementation
+}
+```
+
+## Code Style
+
+### Naming Conventions
+
+- **Classes**: PascalCase (e.g., `RpcCoreService`, `PoToRecordMapper`)
+- **Methods/Functions**: camelCase (e.g., `createPurchaseOrder`, `translatePoToRecord`)
+- **Variables**: camelCase (e.g., `tenantId`, `correlationId`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `PURCHASE_ORDER_RECORD_TYPE_ID`)
+- **Private members**: camelCase with `private` keyword (e.g., `private readonly logger`)
+
+### File Naming
+
+- **ALWAYS** use kebab-case for file names
+- Match file name to class name: `RpcCoreService` → `rpc-core.service.ts`
+- DTOs: `create-purchase-order.dto.ts`
+- Mappers: `po-to-record.mapper.ts`
+- Services: `translation.service.ts`
+
+## Comments and Documentation
+
+### JSDoc Comments
+
+- **ALWAYS** add JSDoc comments for public methods
+- Include description, parameters, return value, and examples when helpful
+- Document complex business logic
+
+```typescript
+// ✅ CORRECT: JSDoc comments
+/**
+ * Create a new Purchase Order
+ *
+ * Supports idempotency via X-Idempotency-Key header or clientOrderId field
+ * Implements tenant feature flag routing
+ *
+ * @param dto - Purchase Order creation data
+ * @param tenantId - Tenant ID from authentication
+ * @param userId - User ID (optional, for audit)
+ * @param request - Express request object (for idempotency key extraction)
+ * @returns Purchase Order response DTO
+ */
+async createPurchaseOrder(
+  dto: CreatePurchaseOrderDto,
+  tenantId: number,
+  userId: number | null,
+  request: any,
+): Promise<PurchaseOrderResponseDto> {
+  // Implementation
+}
+```
+
+### Inline Comments
+
+- **ALWAYS** add comments for non-obvious logic
+- Explain "why", not "what"
+- Use comments for business rules and edge cases
+
+```typescript
+// ✅ CORRECT: Inline comments
+// Priority: X-Idempotency-Key header > clientOrderId field > PO Number (fallback)
+const idempotencyKey = this.idempotencyService.extractKey(request, dto);
+
+// Use OAuth token if available, otherwise fall back to API key/secret
+if (oauthToken) {
+  headers['Authorization'] = `Bearer ${oauthToken}`;
+} else {
+  headers['x-api-key'] = tenant.apiKey || '';
+  headers['x-api-secret'] = tenant.apiSecret || '';
+}
+```
+
+## Code Formatting Checklist
+
+Before committing code, ensure:
+
+- [ ] Code is formatted with Prettier (120 char line length)
+- [ ] ESLint passes without errors
+- [ ] Imports are organized (NestJS, third-party, local)
+- [ ] Explicit return types are used for public methods
+- [ ] File names use kebab-case
+- [ ] Naming conventions are followed (PascalCase for classes, camelCase for methods)
+- [ ] JSDoc comments are added for public methods
+- [ ] Inline comments explain non-obvious logic
+- [ ] No trailing whitespace
+- [ ] Semicolons are used consistently

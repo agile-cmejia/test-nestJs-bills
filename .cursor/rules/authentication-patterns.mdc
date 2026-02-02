@@ -1,0 +1,247 @@
+---
+description: Authentication patterns for OAuth 2.0 and API Key/Secret authentication
+globs: "src/shared/guards/**/*.ts"
+alwaysApply: true
+---
+
+# Authentication Patterns
+
+## Authentication Methods
+
+### Supported Methods
+
+- **OAuth 2.0 Bearer Token**: `Authorization: Bearer <token>`
+- **API Key/Secret**: `x-api-key` and `x-api-secret` headers
+
+### Priority Order
+
+1. OAuth Bearer token (if `Authorization: Bearer` header present)
+2. API Key/Secret (fallback)
+
+## External API Auth Guard
+
+### Guard Pattern
+
+- **ALWAYS** use `ExternalApiAuthGuard` as global guard (configured in `AppModule`)
+- Guard validates authentication and sets `request.tenant` on successful authentication
+- Guard validates tenant is active before allowing access
+- **ALWAYS** log authentication attempts for audit
+
+```typescript
+// ✅ CORRECT: Guard implementation
+@Injectable()
+export class ExternalApiAuthGuard implements CanActivate {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    
+    // Check for OAuth token first
+    const authHeader = request.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return await this.validateOAuthToken(authHeader, request);
+    }
+    
+    // Fall back to API key/secret
+    return await this.validateApiKeySecret(request);
+  }
+}
+```
+
+### OAuth Token Validation
+
+- **ALWAYS** validate OAuth token using `OAuthService.validateAccessToken()`
+- Extract tenant ID from token claims
+- Verify tenant exists and is active
+- Check OAuth scopes if required
+- Set `request.tenant` and `request.oauthToken` on success
+
+```typescript
+// ✅ CORRECT: OAuth validation
+private async validateOAuthToken(authHeader: string, request: any): Promise<boolean> {
+  const token = authHeader.substring(7); // Remove "Bearer " prefix
+  
+  const validation = await this.oauthService.validateAccessToken(token);
+  
+  if (!validation.valid || !validation.tenantId) {
+    throw new UnauthorizedException({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Invalid OAuth token',
+      timestamp: new Date().toISOString(),
+    });
+  }
+  
+  // Verify tenant exists and is active
+  const tenant = await this.tenantsService.getTenantById(validation.tenantId);
+  if (!tenant || !tenant.isActive) {
+    throw new ForbiddenException({
+      statusCode: 403,
+      error: 'Forbidden',
+      message: 'Tenant not found or disabled',
+      timestamp: new Date().toISOString(),
+    });
+  }
+  
+  // Set tenant on request
+  request.tenant = tenant;
+  request.oauthToken = token; // Store for microservice calls
+  
+  return true;
+}
+```
+
+### API Key/Secret Validation
+
+- **ALWAYS** validate both `x-api-key` and `x-api-secret` headers
+- **ALWAYS** normalize header values (remove control characters, trim)
+- Look up tenant by credentials using `TenantsService.getTenantByCredentials()`
+- Verify tenant is active before allowing access
+- Set `request.tenant` on success
+
+```typescript
+// ✅ CORRECT: API key/secret validation
+private async validateApiKeySecret(request: any): Promise<boolean> {
+  const apiKey = normalizeHeaderValue(request.headers['x-api-key']);
+  const apiSecret = normalizeHeaderValue(request.headers['x-api-secret']);
+  
+  if (!apiKey || !apiSecret) {
+    throw new UnauthorizedException({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Missing API key or secret',
+      timestamp: new Date().toISOString(),
+    });
+  }
+  
+  const tenant = await this.tenantsService.getTenantByCredentials(apiKey, apiSecret);
+  
+  if (!tenant || !tenant.isActive) {
+    throw new UnauthorizedException({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Invalid credentials or tenant disabled',
+      timestamp: new Date().toISOString(),
+    });
+  }
+  
+  request.tenant = tenant;
+  return true;
+}
+```
+
+## Header Normalization
+
+### Security Best Practices
+
+- **ALWAYS** normalize header values to prevent header injection attacks
+- Remove control characters, normalize Unicode, trim whitespace
+- Enforce maximum length (256 characters)
+- Return null for invalid values
+
+```typescript
+// ✅ CORRECT: Header normalization
+function normalizeHeaderValue(value: unknown): string | null {
+  if (!value) return null;
+  const v = Array.isArray(value) ? value[0] : value;
+  if (typeof v !== 'string') return null;
+  
+  const out = v
+    .normalize('NFKC')
+    .replace(/[\u0000-\u001F\u007F]/g, '') // Remove control characters
+    .replace(/[\r\n]/g, '')
+    .trim();
+  
+  const MAX = 256;
+  if (out.length === 0 || out.length > MAX) return null;
+  return out;
+}
+```
+
+## Error Responses
+
+### Authentication Error Format
+
+- **ALWAYS** use consistent error response format
+- Include `statusCode`, `error`, `message`, `timestamp`, `correlationId`
+- Use specific error codes: `MISSING_API_KEY`, `MISSING_API_SECRET`, `INVALID_CREDENTIALS`, `TENANT_NOT_FOUND`, `TENANT_DISABLED`
+- **NEVER** reveal which part of credentials was wrong (security)
+
+```typescript
+// ✅ CORRECT: Authentication error response
+throw new UnauthorizedException({
+  statusCode: 401,
+  error: 'Unauthorized',
+  message: AuthErrorMessages[AuthErrorCode.INVALID_CREDENTIALS],
+  errorCode: AuthErrorCode.INVALID_CREDENTIALS,
+  timestamp: new Date().toISOString(),
+  correlationId,
+});
+```
+
+## Audit Logging
+
+### Authentication Audit
+
+- **ALWAYS** log all authentication attempts (success and failure)
+- Include: result, tenantId, correlationId, clientIp, requestPath, reason
+- Mask IP addresses for privacy (keep last octet only)
+- Log at appropriate levels: `logger.log()` for success, `logger.warn()` for failures
+
+```typescript
+// ✅ CORRECT: Authentication audit logging
+private logAuthAttempt(
+  result: 'SUCCESS' | 'FAILED' | 'SYSTEM_ERROR',
+  tenantId: number | null,
+  correlationId: string | undefined,
+  clientIp: string,
+  requestPath: string,
+  reason: string | null,
+): void {
+  const logData = {
+    event: 'authentication_attempt',
+    result,
+    tenantId: tenantId || null,
+    correlationId: correlationId || null,
+    clientIp: this.maskIp(clientIp),
+    requestPath,
+    timestamp: new Date().toISOString(),
+    ...(reason && { reason }),
+  };
+
+  if (result === 'SUCCESS') {
+    this.logger.log(JSON.stringify(logData));
+  } else {
+    this.logger.warn(JSON.stringify(logData));
+  }
+}
+```
+
+## Public Routes
+
+### @Public() Decorator
+
+- Use `@Public()` decorator to mark routes that don't require authentication
+- Guard checks for `IS_PUBLIC_KEY` metadata and skips authentication if present
+- Example: `/oauth/token` endpoint is public
+
+```typescript
+// ✅ CORRECT: Public route
+@Public()
+@Post('token')
+async getToken(@Body() dto: OAuthTokenRequestDto) {
+  // No authentication required
+}
+```
+
+## Authentication Checklist
+
+Before implementing authentication features, ensure:
+
+- [ ] Guard validates both OAuth and API key/secret methods
+- [ ] Header values are normalized for security
+- [ ] Tenant is verified to exist and be active
+- [ ] Error responses use consistent format with error codes
+- [ ] All authentication attempts are logged for audit
+- [ ] IP addresses are masked in logs
+- [ ] OAuth scopes are verified if required
+- [ ] Public routes are marked with `@Public()` decorator
+- [ ] Request object has `tenant` set after successful authentication

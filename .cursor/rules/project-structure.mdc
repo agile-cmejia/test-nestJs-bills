@@ -1,0 +1,167 @@
+---
+description: RPC Core project structure, module organization, and file location patterns
+globs: "src/**/*.ts"
+alwaysApply: true
+---
+
+# RPC Core Project Structure
+
+## Directory Structure
+
+### Source Code Organization
+
+```
+src/
+├── app.module.ts              # Root NestJS module
+├── main.ts                    # Application entry point
+├── context/                   # Feature modules
+│   ├── rpc-core/             # RPC Core feature module
+│   │   ├── config/          # Configuration (field mappings)
+│   │   ├── dto/             # Data Transfer Objects
+│   │   ├── entities/        # TypeORM entities
+│   │   ├── interfaces/      # TypeScript interfaces
+│   │   ├── mappers/         # Translation mappers
+│   │   ├── services/        # Business logic services
+│   │   ├── utils/           # Utility functions
+│   │   ├── rpc-core.controller.ts
+│   │   ├── rpc-core.service.ts
+│   │   └── rpc-core.module.ts
+│   └── tenants/             # Tenants feature module
+└── shared/                   # Shared modules
+    ├── context/             # Shared business services
+    ├── decorators/          # Custom decorators
+    ├── filters/             # Exception filters
+    ├── guards/              # Authentication guards
+    ├── infrastructure/      # Infrastructure (logging, persistence)
+    ├── interceptors/        # Request/response interceptors
+    ├── interfaces/          # Shared interfaces
+    ├── middleware/          # HTTP middleware
+    ├── service/             # Shared services (telemetry, rate limit bypass)
+    └── services/            # Shared services (OAuth)
+```
+
+## Feature Module Structure
+
+### RPC Core Module
+
+- **Location**: `src/context/rpc-core/`
+- **Controllers**: `rpc-core.controller.ts` - HTTP endpoints
+- **Services**: `services/` directory - Business logic
+- **DTOs**: `dto/` directory - Request/response DTOs
+- **Mappers**: `mappers/` directory - Translation logic
+- **Config**: `config/` directory - No-code configuration (field mappings)
+
+### Module File Pattern
+
+```typescript
+// ✅ CORRECT: Feature module structure
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Entity1, Entity2]),
+    HttpModule.register({ timeout: 60000 }),
+    ConfigModule,
+    RelatedModule,
+  ],
+  controllers: [FeatureController],
+  providers: [
+    FeatureService,
+    TranslationService,
+    ClientService,
+    MapperService,
+  ],
+  exports: [FeatureService], // Export if used by other modules
+})
+export class FeatureModule {}
+```
+
+## Service Organization
+
+### Service Types
+
+1. **Business Logic Services** (`services/`):
+   - `translation.service.ts` - Orchestrates translation
+   - `idempotency.service.ts` - Idempotency handling
+   - `tenant-feature-flag.service.ts` - Feature flag routing
+
+2. **Client Services** (`services/`):
+   - `record-grid-client.service.ts` - HTTP client for Record Grid MS
+   - `line-items-client.service.ts` - HTTP client for Line Items MS
+   - `field-mapping-client.service.ts` - HTTP client for field definitions
+   - `list-values-client.service.ts` - HTTP client for list values
+
+3. **Utility Services** (`services/`):
+   - `field-name-mapper.service.ts` - Field name mapping
+   - `field-validator.service.ts` - Field validation
+
+## File Location Rules
+
+### Where to Place Files
+
+- **Controllers**: `src/context/{feature}/{feature}.controller.ts`
+- **Services**: `src/context/{feature}/services/{service-name}.service.ts`
+- **DTOs**: `src/context/{feature}/dto/{dto-name}.dto.ts`
+- **Mappers**: `src/context/{feature}/mappers/{mapper-name}.mapper.ts`
+- **Entities**: `src/context/{feature}/entities/{entity-name}.entity.ts`
+- **Interfaces**: `src/context/{feature}/interfaces/{interface-name}.interface.ts`
+- **Config**: `src/context/{feature}/config/{config-name}.config.ts`
+- **Utils**: `src/context/{feature}/utils/{util-name}.ts`
+
+### Shared Code
+
+- **Shared Services**: `src/shared/services/` or `src/shared/service/`
+- **Shared Guards**: `src/shared/guards/`
+- **Shared Interceptors**: `src/shared/interceptors/`
+- **Shared Middleware**: `src/shared/middleware/`
+- **Shared Filters**: `src/shared/filters/`
+- **Shared Infrastructure**: `src/shared/infrastructure/`
+
+## Barrel Exports
+
+### Index Files
+
+- **ALWAYS** create `index.ts` files for barrel exports
+- Export public APIs from feature modules
+- Simplify imports
+
+```typescript
+// ✅ CORRECT: Barrel export
+// dto/index.ts
+export * from './create-purchase-order.dto';
+export * from './update-purchase-order.dto';
+export * from './purchase-order-response.dto';
+export * from './shared.dto';
+
+// Usage
+import { CreatePurchaseOrderDto, PurchaseOrderResponseDto } from './dto';
+```
+
+## Configuration Files
+
+### Field Mappings
+
+- **Location**: `src/context/rpc-core/config/field-name-mappings.config.ts`
+- **Purpose**: No-code configuration for field name mappings
+- **Pattern**: Array of tuples: `[CORFieldName, [OrderBahnFieldName1, OrderBahnFieldName2, ...]]`
+
+```typescript
+// ✅ CORRECT: Field mapping configuration
+export const FIELD_NAME_MAPPINGS: Array<[string, string[]]> = [
+  ['PO Date', ['Date Ordered', 'PO Date', 'Purchase Order Date']],
+  ['Vendor Name', ['Vendor', 'Vendor Name', 'Supplier']],
+  // ...
+];
+```
+
+## Project Structure Checklist
+
+Before creating new files, ensure:
+
+- [ ] Files are placed in correct directories based on type
+- [ ] Feature modules are in `src/context/{feature}/`
+- [ ] Shared code is in `src/shared/`
+- [ ] Barrel exports are created for public APIs
+- [ ] Configuration files are in `config/` directory
+- [ ] Test files are next to source files (`*.spec.ts`)
+- [ ] File names use kebab-case
+- [ ] Module files follow naming convention (`{feature}.module.ts`)
+- [ ] Services are organized by type (business, client, utility)

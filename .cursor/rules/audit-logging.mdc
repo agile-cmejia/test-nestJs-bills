@@ -1,0 +1,311 @@
+---
+description: Immutable audit logging, structured logging with typescript (pino/winston), and audit trail requirements
+globs: "src/**/*.ts"
+alwaysApply: true
+---
+
+# Audit & Logging Standards
+
+## Immutable Audit Logs
+
+- **ALWAYS** log all tool executions to an immutable ledger *before* execution occurs
+- Audit logs must be append-only (never modify or delete)
+- Store audit logs in PostgreSQL with timestamp and correlation IDs
+- Use database-level constraints to prevent modification
+
+```typescript
+// ✅ CORRECT: Immutable audit logging (TypeScript with TypeORM example)
+import {
+  Entity, PrimaryColumn, Column, CreateDateColumn,
+} from "typeorm";
+
+@Entity({ name: "audit_logs" })
+export class AuditLog {
+  @PrimaryColumn()
+  id!: string;
+
+  @CreateDateColumn({ type: "timestamp" })
+  timestamp!: Date;
+
+  @Column()
+  agent_id!: string;
+
+  @Column()
+  user_id!: string;
+
+  @Column()
+  tenant_id!: string;
+
+  @Column()
+  action!: string;
+
+  @Column({ nullable: true })
+  tool_name?: string;
+
+  @Column()
+  correlation_id!: string;
+
+  @Column("jsonb", { nullable: true })
+  parameters?: Record<string, any>;
+
+  @Column("jsonb", { nullable: true })
+  result?: Record<string, any>;
+
+  @Column()
+  status!: "success" | "failure" | "pending";
+}
+
+// Database constraint (PostgreSQL): prevent updates/deletes
+// Add this constraint in your migration SQL:
+// ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+// CREATE POLICY insert_only ON audit_logs FOR INSERT USING (true);
+// -- Do not allow UPDATE/DELETE!
+
+
+import { getRepository } from "typeorm";
+import { v4 as uuidv4 } from "uuid";
+
+export async function logBeforeExecution({
+  agent_id,
+  user_id,
+  tenant_id,
+  action,
+  tool_name,
+  correlation_id,
+  parameters,
+}: {
+  agent_id: string;
+  user_id: string;
+  tenant_id: string;
+  action: string;
+  tool_name?: string;
+  correlation_id: string;
+  parameters?: Record<string, any>;
+}): Promise<void> {
+  const repo = getRepository(AuditLog);
+  const auditEntry = repo.create({
+    id: uuidv4(),
+    agent_id,
+    user_id,
+    tenant_id,
+    action,
+    tool_name,
+    correlation_id,
+    parameters,
+    status: "pending",
+  });
+  await repo.save(auditEntry);
+}
+```
+
+## Structured Logging
+
+- **ALWAYS** use a structured logger like `pino` or `winston` for all logging with consistent field names
+- Use JSON output format in production
+- Include required fields: `agent_id`, `user_id`/`tenant_id`, `action`, `tool_name`, `timestamp`, `correlation_id`
+
+```typescript
+// ✅ CORRECT: Structured logging with pino
+import pino from "pino";
+import { v4 as uuidv4 } from "uuid";
+
+const logger = pino({
+  level: process.env.NODE_ENV === "production" ? "info" : "debug",
+  timestamp: pino.stdTimeFunctions.isoTime,
+  formatters: {
+    level(label) {
+      return { level: label };
+    },
+  },
+});
+
+// Usage with required fields
+const correlation_id = uuidv4();
+
+logger.info({
+  msg: "Executing MCP tool",
+  agent_id: "supervisor",
+  user_id: "user123",
+  tenant_id: "tenant456",
+  action: "tool_execution",
+  tool_name: "database_query",
+  timestamp: new Date().toISOString(),
+  correlation_id,
+  parameters: { query: "SELECT * FROM users" }
+});
+```
+
+## Required Log Fields
+
+- **ALWAYS** include these fields in every log entry:
+  - `agent_id`: Identifier of the agent performing the action
+  - `user_id`/`tenant_id`: User/tenant context for multi-tenancy
+  - `action`: Type of action being performed (e.g., "tool_execution", "workflow_start", "approval_requested")
+  - `tool_name`: Name of the MCP tool being invoked (if applicable)
+  - `timestamp`: ISO 8601 formatted timestamp
+  - `correlation_id`: Request correlation ID for tracing across services
+
+```typescript
+// ✅ CORRECT: Logging with all required fields
+import { v4 as uuidv4 } from "uuid";
+
+type LogActionParams = {
+  agent_id: string;
+  user_id: string;
+  tenant_id: string;
+  action: string;
+  tool_name?: string;
+  correlation_id?: string;
+  [key: string]: any;
+};
+
+function logAction(params: LogActionParams): void {
+  const {
+    agent_id,
+    user_id,
+    tenant_id,
+    action,
+    tool_name,
+    correlation_id = uuidv4(),
+    ...rest
+  } = params;
+
+  logger.info({
+    msg: action,
+    agent_id,
+    user_id,
+    tenant_id,
+    action,
+    tool_name,
+    timestamp: new Date().toISOString(),
+    correlation_id,
+    ...rest
+  });
+}
+```
+
+## Audit Trail Requirements
+
+- **ALWAYS** audit these actions:
+  - Tool executions (before execution)
+  - Workflow state transitions
+  - Human-in-the-loop approvals/rejections
+  - Agent decisions and reasoning
+  - Error conditions and exceptions
+
+```typescript
+// ✅ CORRECT: Comprehensive audit trail
+import { v4 as uuidv4 } from "uuid";
+
+async function executeWithAudit({
+  tool_name,
+  parameters,
+  agent_id,
+  user_id,
+  tenant_id,
+}: {
+  tool_name: string;
+  parameters: Record<string, any>;
+  agent_id: string;
+  user_id: string;
+  tenant_id: string;
+}): Promise<Record<string, any>> {
+  const correlation_id = uuidv4();
+
+  // Log before execution (immutable)
+  await logBeforeExecution({
+    agent_id,
+    user_id,
+    tenant_id,
+    action: "tool_execution_start",
+    tool_name,
+    correlation_id,
+    parameters,
+  });
+
+  try {
+    // Execute tool
+    const result = await executeMcpTool(tool_name, parameters);
+
+    // Log success (assuming you have a corresponding logAfterExecution)
+    await logAfterExecution({
+      correlation_id,
+      status: "success",
+      result,
+    });
+
+    logger.info({
+      msg: "Tool execution completed",
+      agent_id,
+      user_id,
+      tenant_id,
+      action: "tool_execution_complete",
+      tool_name,
+      correlation_id,
+      status: "success",
+    });
+
+    return result;
+  } catch (e: any) {
+    // Log failure
+    await logAfterExecution({
+      correlation_id,
+      status: "failure",
+      error: String(e),
+    });
+
+    logger.error({
+      msg: "Tool execution failed",
+      agent_id,
+      user_id,
+      tenant_id,
+      action: "tool_execution_failed",
+      tool_name,
+      correlation_id,
+      status: "failure",
+      error: String(e),
+      stack: e?.stack,
+    });
+    throw e;
+  }
+}
+
+// Stub implementations for the example
+async function executeMcpTool(tool: string, params: Record<string, any>): Promise<any> {
+  // ... tool logic ...
+  return {};
+}
+async function logAfterExecution(params: any): Promise<void> {
+  // ... after-execution logic ...
+}
+```
+
+## Log Levels
+
+- **DEBUG:** Detailed debugging information (development only)
+- **INFO:** Informational messages (operations starting/completing)
+- **WARNING:** Warning conditions that don't stop execution
+- **ERROR:** Error conditions with stack traces
+- **CRITICAL:** Critical errors that may cause system failure
+
+```typescript
+// ✅ CORRECT: Appropriate log levels
+logger.debug({ msg: "Detailed debug info", ... });   // Development only
+logger.info({ msg: "Operation started", ... });      // Normal operations
+logger.warn({ msg: "Unusual condition", ... });      // Non-critical issues
+logger.error({ msg: "Operation failed", error, stack: error?.stack });  // Errors with stack
+logger.fatal({ msg: "System failure", ... });        // Critical failures
+```
+
+## Audit & Logging Checklist
+
+Before deploying code, ensure:
+
+- [ ] All tool executions are logged before execution (immutable audit)
+- [ ] Structured logging uses a structured logger (pino/winston) with JSON output
+- [ ] All required fields are included (agent_id, user_id, tenant_id, action, tool_name, timestamp, correlation_id)
+- [ ] Audit logs are stored in immutable database table
+- [ ] Correlation IDs are used for request tracing
+- [ ] Log levels are appropriate (INFO for operations, ERROR for failures)
+- [ ] Sensitive data is not logged (passwords, tokens, PII)
+- [ ] Error logs include stack traces (`stack` field in error logs)

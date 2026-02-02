@@ -1,0 +1,488 @@
+---
+description: NestJS TypeScript coding standards, patterns, and conventions for RPC Core microservice
+globs: "src/**/*.ts"
+alwaysApply: true
+---
+
+# NestJS TypeScript Standards for RPC Core
+
+## Project Overview
+
+This is a **NestJS 9.x** microservice built with **TypeScript 4.7.4** that acts as an RPC integration layer between COR ERP and OrderBahn microservices. The project uses TypeORM, PostgreSQL, and follows a modular architecture pattern.
+
+## Module Organization
+
+### Feature Modules Structure
+
+- **Context Modules** (`src/context/`): Feature modules containing controllers and module definitions
+  - Example: `src/context/rpc-core/` - RPC Core feature module
+- **Shared Modules** (`src/shared/`): Cross-cutting concerns
+  - `src/shared/guards/` - Authentication guards
+  - `src/shared/interceptors/` - Request/response interceptors
+  - `src/shared/middleware/` - HTTP middleware
+  - `src/shared/filters/` - Exception filters
+  - `src/shared/services/` - Shared services (OAuth, Telemetry)
+  - `src/shared/infrastructure/` - Infrastructure (logging, persistence)
+
+### Module File Pattern
+
+```typescript
+// ✅ CORRECT: Module structure
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Entity1, Entity2]), // Using default connection (no connection name)
+    HttpModule.register({
+      timeout: 60000, // 60 seconds timeout
+      maxRedirects: 5,
+    }),
+    ConfigModule, // For environment variables
+    RelatedModule, // Other feature modules
+  ],
+  controllers: [FeatureController],
+  providers: [
+    FeatureService,
+    RelatedService,
+    MapperService,
+  ],
+  exports: [FeatureService], // Export if used by other modules
+})
+export class FeatureModule {}
+```
+
+## Dependency Injection
+
+### Repository Injection
+
+- **ALWAYS** use `@InjectRepository(Entity)` for TypeORM repositories (using default connection)
+- **NEVER** specify connection name - project uses single default connection
+- Use `@InjectRepository(Entity)` pattern (not `@InjectRepository(Entity, dbConfig.name)`)
+
+```typescript
+// ✅ CORRECT: Repository injection (default connection)
+@Injectable()
+export class MyService {
+  constructor(
+    @InjectRepository(IdempotencyKey)
+    private readonly idempotencyRepository: Repository<IdempotencyKey>,
+    @InjectRepository(Tenant)
+    private readonly tenantRepository: Repository<Tenant>,
+  ) {}
+}
+```
+
+### Service Injection
+
+- **ALWAYS** use constructor injection for all dependencies
+- Inject services, clients, mappers, and utilities via constructor
+- Use `@Optional()` decorator for optional dependencies
+
+```typescript
+// ✅ CORRECT: Service injection
+@Injectable()
+export class RpcCoreService {
+  constructor(
+    private readonly translationService: TranslationService,
+    private readonly recordGridClient: RecordGridClientService,
+    private readonly idempotencyService: IdempotencyService,
+    @Optional() private readonly oauthService: OAuthService | null,
+  ) {}
+}
+```
+
+## Logging
+
+### Logger Pattern
+
+- **ALWAYS** create logger instance: `private readonly logger = new Logger(ClassName.name)`
+- Use appropriate log levels:
+  - `logger.log()` - Informational messages (operations starting/completing)
+  - `logger.debug()` - Detailed debugging information
+  - `logger.warn()` - Warning conditions
+  - `logger.error()` - Errors with context
+- **ALWAYS** use structured JSON logging: `logger.log(JSON.stringify({ event, ...data }))`
+
+```typescript
+// ✅ CORRECT: Structured logging
+this.logger.log(JSON.stringify({
+  event: 'purchase_order_created',
+  poNumber: po.poInfo.poNumber,
+  tenantId,
+  correlationId,
+  timestamp: new Date().toISOString(),
+}));
+
+this.logger.error(`Failed to create PO: ${error.message}`, error.stack);
+```
+
+### Log Sanitization
+
+- **ALWAYS** sanitize sensitive data before logging
+- Never log passwords, tokens, API keys, or secrets
+- Use `***` or `[REDACTED]` for sensitive fields
+
+```typescript
+// ✅ CORRECT: Sanitized logging
+private sanitizePayload(payload: any): any {
+  const sensitiveKeys = new Set(['password', 'token', 'secret', 'authorization', 'apiKey', 'apiSecret']);
+  // ... sanitization logic
+}
+```
+
+## Error Handling
+
+### Exception Patterns
+
+- **ALWAYS** use NestJS built-in exceptions: `BadRequestException`, `NotFoundException`, `UnauthorizedException`, `ForbiddenException`
+- **ALWAYS** provide structured error responses with consistent format
+- Include `statusCode`, `error`, `message`, `timestamp`, and `correlationId` in error responses
+
+```typescript
+// ✅ CORRECT: Structured error response
+throw new UnauthorizedException({
+  statusCode: 401,
+  error: 'Unauthorized',
+  message: 'Tenant ID is required. Please authenticate using API key/secret or OAuth Bearer token.',
+  timestamp: new Date().toISOString(),
+  correlationId,
+});
+
+throw new BadRequestException({
+  statusCode: 400,
+  error: 'Bad Request',
+  message: 'Invalid request data',
+  timestamp: new Date().toISOString(),
+});
+```
+
+### Error Handling in Services
+
+- **ALWAYS** use try-catch blocks in service methods
+- Re-throw HTTP exceptions after logging
+- Wrap unknown errors in appropriate HTTP exceptions
+
+```typescript
+// ✅ CORRECT: Service error handling
+try {
+  const result = await this.repository.save(entity);
+  this.logger.log(`Entity created with ID: ${result.id}`);
+  return result;
+} catch (error) {
+  this.logger.error(`Failed to create entity: ${error.message}`, error.stack);
+  
+  // Re-throw HTTP exceptions
+  if (error instanceof BadRequestException || error instanceof NotFoundException) {
+    throw error;
+  }
+  
+  // Wrap unknown errors
+  throw new BadRequestException({
+    statusCode: 400,
+    error: 'Bad Request',
+    message: error.message || 'Failed to process request',
+    timestamp: new Date().toISOString(),
+  });
+}
+```
+
+## DTOs and Validation
+
+### DTO Structure
+
+- **ALWAYS** use `class-validator` decorators: `@IsNotEmpty()`, `@IsString()`, `@IsNumber()`, `@IsOptional()`, `@ValidateNested()`
+- **ALWAYS** use `@ApiProperty()` and `@ApiPropertyOptional()` from `@nestjs/swagger` for API documentation
+- Create separate DTOs for different operations:
+  - `Create{Entity}Dto` - For creation
+  - `Update{Entity}Dto` - For updates (use `@IsOptional()` for all fields)
+  - `{Entity}ResponseDto` - For responses
+
+```typescript
+// ✅ CORRECT: DTO with validation
+export class CreatePurchaseOrderDto {
+  @ApiProperty({ description: 'Purchase Order information' })
+  @IsNotEmpty()
+  @ValidateNested()
+  @Type(() => PoInfoDto)
+  poInfo: PoInfoDto;
+
+  @ApiPropertyOptional({ description: 'Client order ID for idempotency' })
+  @IsOptional()
+  @IsString()
+  clientOrderId?: string;
+}
+
+export class UpdatePurchaseOrderDto {
+  @ApiPropertyOptional({ description: 'Purchase Order information' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PoInfoDto)
+  poInfo?: PoInfoDto;
+}
+```
+
+### Validation Pipe Configuration
+
+- Global validation pipe is configured in `main.ts` with:
+  - `whitelist: true` - Strip non-whitelisted properties
+  - `forbidNonWhitelisted: true` - Throw error for non-whitelisted properties
+  - `transform: true` - Automatically transform payloads
+  - `stopAtFirstError: true` - Stop validation on first error
+
+## Controllers
+
+### Controller Pattern
+
+- **ALWAYS** use Swagger decorators: `@ApiTags()`, `@ApiOperation()`, `@ApiResponse()`, `@ApiParam()`, `@ApiQuery()`
+- **ALWAYS** use `@ApiBearerAuth('OAuth2')` and `@ApiSecurity('ApiKey')` / `@ApiSecurity('ApiSecret')` for authentication documentation
+- **ALWAYS** extract `tenantId` from `request.tenant?.id` and validate it exists
+- Keep controllers thin - delegate to services
+- Use appropriate HTTP decorators: `@Get()`, `@Post()`, `@Put()`, `@Delete()`
+- Use `@HttpCode()` to set explicit status codes
+
+```typescript
+// ✅ CORRECT: Controller pattern
+@ApiTags('RPC Core - Purchase Orders')
+@ApiBearerAuth('OAuth2')
+@ApiSecurity('ApiKey')
+@ApiSecurity('ApiSecret')
+@Controller('rpc/v1/purchase-orders')
+export class RpcCoreController {
+  constructor(private readonly rpcCoreService: RpcCoreService) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create Purchase Order' })
+  @ApiResponse({ status: HttpStatus.CREATED, type: PurchaseOrderResponseDto })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid request data' })
+  async createPurchaseOrder(
+    @Body() createDto: CreatePurchaseOrderDto,
+    @Req() request: any,
+  ): Promise<PurchaseOrderResponseDto> {
+    const tenantId = request.tenant?.id;
+
+    if (!tenantId) {
+      throw new UnauthorizedException({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Tenant ID is required. Please authenticate using API key/secret or OAuth Bearer token.',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return this.rpcCoreService.createPurchaseOrder(createDto, tenantId, request.user?.id || null, request);
+  }
+}
+```
+
+## Services
+
+### Service Pattern
+
+- **ALWAYS** validate tenant ID exists before operations
+- **ALWAYS** log operations at method entry/exit
+- Use `private readonly logger = new Logger(ServiceName.name)`
+- Return DTOs, not entities (unless mapping is required)
+- Handle errors and re-throw with appropriate HTTP exceptions
+
+```typescript
+// ✅ CORRECT: Service method pattern
+async createPurchaseOrder(
+  dto: CreatePurchaseOrderDto,
+  tenantId: number,
+  userId: number | null,
+  request: any,
+): Promise<PurchaseOrderResponseDto> {
+  this.logger.log(`Creating Purchase Order ${dto.poInfo.poNumber} for tenant ${tenantId}`);
+
+  try {
+    // Check idempotency
+    const idempotencyKey = this.idempotencyService.extractKey(request, dto);
+    if (idempotencyKey) {
+      const existing = await this.idempotencyService.checkExisting(idempotencyKey, tenantId);
+      if (existing) {
+        this.logger.log(`Returning cached response for idempotency key: ${idempotencyKey}`);
+        return existing.responseBody;
+      }
+    }
+
+    // Translate PO to RecordHeader
+    const recordHeader = await this.translationService.translatePoToRecord(dto, tenantId);
+
+    // Create record
+    const headers = this.getApiHeaders(request);
+    const createdRecord = await this.recordGridClient.createRecord(recordHeader, tenantId, headers);
+
+    // Translate back to PO response
+    const response = await this.translationService.translateRecordToPo(createdRecord, []);
+
+    // Store idempotency response
+    if (idempotencyKey) {
+      await this.idempotencyService.storeResponse(idempotencyKey, tenantId, response, 201);
+    }
+
+    return response;
+  } catch (error) {
+    this.logger.error(`Failed to create Purchase Order: ${error.message}`, error.stack);
+    throw error;
+  }
+}
+```
+
+## Client Services
+
+### HTTP Client Service Pattern
+
+- **ALWAYS** use `HttpService` from `@nestjs/axios` for microservice communication
+- **ALWAYS** use `firstValueFrom()` from `rxjs` to convert Observable to Promise
+- **ALWAYS** include proper headers (userId, role_id, Authorization or x-api-key/x-api-secret)
+- **ALWAYS** handle HTTP errors and convert to appropriate exceptions
+- **ALWAYS** log requests and responses for debugging
+
+```typescript
+// ✅ CORRECT: HTTP client service
+@Injectable()
+export class RecordGridClientService {
+  private readonly logger = new Logger(RecordGridClientService.name);
+  private readonly baseUrl: string;
+
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.baseUrl = this.configService.get<string>('RECORDS_GRID_MS_URL') || 'http://localhost:4001/';
+    this.logger.log(`Record Grid MS URL: ${this.baseUrl}`);
+  }
+
+  async createRecord(data: ICreateRecordHeaderDto, tenantId: number, headers?: any): Promise<IRecordHeader> {
+    this.logger.log(`Creating RecordHeader for tenant ${tenantId}`);
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post<IRecordHeader>(`${this.baseUrl}record-headers`, {
+          tenant: tenantId,
+          recordType: data.recordTypeId,
+          // ... transformed data
+        }, { headers }),
+      );
+
+      this.logger.log(`RecordHeader created with ID: ${response.data.id}`);
+      return response.data;
+    } catch (error) {
+      this.logger.error(`Failed to create RecordHeader: ${error.message}`, error.stack);
+      
+      if (error.response) {
+        // HTTP error response
+        throw new HttpException(
+          error.response.data || 'Failed to create record',
+          error.response.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+      
+      throw new ServiceUnavailableException('Record Grid microservice is unavailable');
+    }
+  }
+}
+```
+
+## Mappers
+
+### Mapper Pattern
+
+- **ALWAYS** create separate mapper classes for translation between formats
+- **ALWAYS** use `@Injectable()` decorator for dependency injection
+- Mappers should be pure transformation functions (no business logic)
+- Use descriptive method names: `mapToRecordHeader()`, `mapToPurchaseOrder()`
+
+```typescript
+// ✅ CORRECT: Mapper pattern
+@Injectable()
+export class PoToRecordMapper {
+  private readonly logger = new Logger(PoToRecordMapper.name);
+  private readonly PURCHASE_ORDER_RECORD_TYPE_ID = 30;
+
+  mapToRecordHeader(po: CreatePurchaseOrderDto, tenantId: number): ICreateRecordHeaderDto {
+    this.logger.debug(`Mapping PO ${po.poInfo.poNumber} to RecordHeader`);
+
+    const additionalFields = this.buildAdditionalFieldsFromPO(po);
+
+    return {
+      recordTypeId: this.PURCHASE_ORDER_RECORD_TYPE_ID,
+      recordNumber: po.poInfo.poNumber,
+      additionalFields,
+      level: 0,
+      isProject: false,
+    };
+  }
+
+  private buildAdditionalFieldsFromPO(po: CreatePurchaseOrderDto): IAdditionalField[] {
+    const fields: IAdditionalField[] = [];
+    
+    if (po.poInfo?.poNumber) {
+      fields.push({ fieldName: 'PO Number', value: po.poInfo.poNumber });
+    }
+    
+    // ... more field mappings
+    
+    return fields;
+  }
+}
+```
+
+## TypeScript Best Practices
+
+### Type Safety
+
+- **ALWAYS** use explicit return types for public methods: `async method(): Promise<Type>`
+- Use interfaces for complex types (e.g., `IRecordHeader`, `ICreateRecordHeaderDto`)
+- Avoid `any` when possible - use `unknown` if type is truly unknown
+- Use type assertions sparingly and with validation
+
+### Import Organization
+
+- Group imports: NestJS decorators, then third-party, then local
+- Use absolute imports when possible (configured in tsconfig.json)
+- Avoid circular dependencies
+
+```typescript
+// ✅ CORRECT: Import organization
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
+import { IRecordHeader } from '../interfaces';
+import { CreatePurchaseOrderDto } from '../dto';
+```
+
+## Configuration
+
+### Environment Variables
+
+- **ALWAYS** use `ConfigService` from `@nestjs/config` for environment variables
+- **ALWAYS** provide fallback to `process.env` if ConfigService fails
+- Document required environment variables in `.env.example`
+- Use type-safe configuration when possible
+
+```typescript
+// ✅ CORRECT: Environment variable access
+constructor(private readonly configService: ConfigService) {
+  const baseUrl = this.configService.get<string>('RECORDS_GRID_MS_URL') 
+    || process.env.RECORDS_GRID_MS_URL 
+    || 'http://localhost:4001/';
+}
+```
+
+## NestJS TypeScript Checklist
+
+Before committing code, ensure:
+
+- [ ] All services use `@Injectable()` decorator
+- [ ] All repositories use `@InjectRepository(Entity)` (default connection)
+- [ ] Logger is created: `private readonly logger = new Logger(ClassName.name)`
+- [ ] Structured JSON logging is used
+- [ ] Error handling includes try-catch and appropriate HTTP exceptions
+- [ ] DTOs have validation decorators and Swagger documentation
+- [ ] Controllers extract and validate tenantId
+- [ ] Services log operations at entry/exit
+- [ ] Client services handle HTTP errors properly
+- [ ] Mappers are pure transformation functions
+- [ ] Explicit return types are used for public methods
+- [ ] Imports are organized (NestJS, third-party, local)

@@ -1,0 +1,334 @@
+---
+description: SOLID principles, design patterns, and architectural best practices
+globs: 
+alwaysApply: true
+---
+
+# Architecture Principles
+
+## SOLID Principles
+
+### Single Responsibility Principle (SRP)
+
+- **ALWAYS** ensure each class/function does one thing well
+- A class should have only one reason to change
+- Separate concerns into different classes
+- Keep classes focused and cohesive
+
+```typescript
+// ❌ WRONG: Multiple responsibilities
+class UserService {
+  createUser() {}
+  sendEmail() {}
+  generateReport() {}
+  processPayment() {}
+}
+
+// ✅ CORRECT: Single responsibility
+class UserService {
+  createUser() {}
+  updateUser() {}
+  deleteUser() {}
+}
+
+class EmailService {
+  sendEmail() {}
+}
+
+class ReportService {
+  generateReport() {}
+}
+```
+
+### Open/Closed Principle (OCP)
+
+- **ALWAYS** design classes to be open for extension, closed for modification
+- Use interfaces and abstract classes
+- Extend functionality through inheritance or composition
+- Avoid modifying existing code when adding features
+
+```typescript
+// ✅ CORRECT: Open for extension
+interface PaymentProcessor {
+  process(amount: number): Promise<void>;
+}
+
+class CreditCardProcessor implements PaymentProcessor {
+  async process(amount: number) {
+    // Credit card processing
+  }
+}
+
+class PayPalProcessor implements PaymentProcessor {
+  async process(amount: number) {
+    // PayPal processing
+  }
+}
+```
+
+### Liskov Substitution Principle (LSP)
+
+- **ALWAYS** ensure subtypes are substitutable for base types
+- Derived classes must be usable through base class interface
+- Don't violate expectations of base class
+- Maintain behavioral compatibility
+
+```typescript
+// ✅ CORRECT: Liskov substitution
+class Bird {
+  fly(): void {
+    // Base implementation
+  }
+}
+
+class Sparrow extends Bird {
+  fly(): void {
+    // Sparrow can fly
+  }
+}
+
+class Penguin extends Bird {
+  fly(): void {
+    throw new Error('Penguins cannot fly');
+    // This violates LSP - better to use composition
+  }
+}
+```
+
+### Interface Segregation Principle (ISP)
+
+- **ALWAYS** prefer many specific interfaces over one general interface
+- Clients shouldn't depend on methods they don't use
+- Create focused, client-specific interfaces
+- Avoid fat interfaces
+
+```typescript
+// ❌ WRONG: Fat interface
+interface Worker {
+  work(): void;
+  eat(): void;
+  sleep(): void;
+}
+
+// ✅ CORRECT: Segregated interfaces
+interface Workable {
+  work(): void;
+}
+
+interface Eatable {
+  eat(): void;
+}
+
+interface Sleepable {
+  sleep(): void;
+}
+```
+
+### Dependency Inversion Principle (DIP)
+
+- **ALWAYS** depend on abstractions, not concretions
+- High-level modules shouldn't depend on low-level modules
+- Both should depend on abstractions
+- Use dependency injection
+
+```typescript
+// ❌ WRONG: Dependency on concrete class
+class UserService {
+  private repository = new UserRepository();
+}
+
+// ✅ CORRECT: Dependency on abstraction
+interface IUserRepository {
+  findById(id: string): Promise<User>;
+}
+
+class UserService {
+  constructor(private repository: IUserRepository) {}
+}
+```
+
+## DRY (Don't Repeat Yourself)
+
+- **ALWAYS** extract repeated code into reusable functions/classes
+- Identify common patterns and abstract them
+- Use utility functions for common operations
+- Create base classes for shared functionality
+- Avoid code duplication
+
+```typescript
+// ❌ WRONG: Repeated code
+function validateEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validateUserEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// ✅ CORRECT: Reusable function
+function validateEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// Use the same function everywhere
+```
+
+## Dependency Injection
+
+- **ALWAYS** use dependency injection for decoupling
+- Inject dependencies through constructor
+- Use interfaces for dependencies
+- Make classes testable and flexible
+
+```typescript
+// ✅ CORRECT: Dependency injection
+@Injectable()
+export class OrderService {
+  constructor(
+    @InjectRepository(Order, dbConfig.name)
+    private readonly orderRepository: Repository<Order>,
+    private readonly paymentService: PaymentService,
+    private readonly emailService: EmailService,
+  ) {}
+}
+```
+
+## Design Patterns
+
+### Factory Pattern
+
+- Use for creating objects without specifying exact class
+- Centralize object creation logic
+- Useful for complex object initialization
+
+```typescript
+// ✅ CORRECT: Factory pattern
+class PaymentProcessorFactory {
+  create(type: string): PaymentProcessor {
+    switch (type) {
+      case 'credit-card':
+        return new CreditCardProcessor();
+      case 'paypal':
+        return new PayPalProcessor();
+      default:
+        throw new Error(`Unknown payment type: ${type}`);
+    }
+  }
+}
+```
+
+### Strategy Pattern
+
+- Use for interchangeable algorithms
+- Encapsulate algorithms in separate classes
+- Make algorithms interchangeable at runtime
+
+```typescript
+// ✅ CORRECT: Strategy pattern
+interface SortingStrategy {
+  sort(data: number[]): number[];
+}
+
+class QuickSortStrategy implements SortingStrategy {
+  sort(data: number[]): number[] {
+    // Quick sort implementation
+  }
+}
+
+class MergeSortStrategy implements SortingStrategy {
+  sort(data: number[]): number[] {
+    // Merge sort implementation
+  }
+}
+```
+
+### Facade Pattern
+
+- Use to provide simplified interface to complex subsystem
+- Hide complexity behind simple interface
+- Useful for API design
+
+```typescript
+// ✅ CORRECT: Facade pattern
+class OrderFacade {
+  constructor(
+    private orderService: OrderService,
+    private paymentService: PaymentService,
+    private shippingService: ShippingService,
+  ) {}
+
+  async placeOrder(orderData: OrderData): Promise<Order> {
+    const order = await this.orderService.create(orderData);
+    await this.paymentService.process(order);
+    await this.shippingService.schedule(order);
+    return order;
+  }
+}
+```
+
+### Repository Pattern
+
+- Use for data access abstraction
+- Encapsulate database operations
+- Make data access testable
+
+```typescript
+// ✅ CORRECT: Repository pattern
+interface IUserRepository {
+  findById(id: string): Promise<User>;
+  findAll(): Promise<User[]>;
+  save(user: User): Promise<User>;
+  delete(id: string): Promise<void>;
+}
+
+class UserRepository implements IUserRepository {
+  // Implementation
+}
+```
+
+## Microservice Architecture
+
+### Service Independence
+
+- **ALWAYS** ensure each microservice manages its own database entities/schemas
+- Avoid shared databases between microservices
+- Use database per service pattern
+- Implement service-to-service communication via APIs
+
+### Service Boundaries
+
+- Define clear service boundaries
+- Each service should have single responsibility
+- Services should be independently deployable
+- Use API Gateway for service coordination
+
+## ORM Usage
+
+- **ALWAYS** use ORMs (TypeORM, Sequelize, Mongoose) for object-relational mapping
+- Use ORM features for type safety
+- Use query builders for complex queries
+- Avoid raw SQL when ORM methods are available
+
+## Architecture Checklist
+
+Before implementing features, ensure:
+- [ ] SOLID principles are followed
+- [ ] DRY principle is applied
+- [ ] Dependency injection is used
+- [ ] Appropriate design patterns are applied
+- [ ] Service boundaries are clear
+- [ ] Code is modular and testable
+- [ ] Abstractions are used appropriately
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** create classes with multiple responsibilities
+2. ❌ **Don't** modify existing code when adding features (use extension)
+3. ❌ **Don't** violate Liskov substitution principle
+4. ❌ **Don't** create fat interfaces
+5. ❌ **Don't** depend on concrete classes
+6. ❌ **Don't** repeat code - extract to reusable functions
+7. ❌ **Don't** skip dependency injection
+8. ❌ **Don't** ignore design patterns when appropriate
+9. ❌ **Don't** create tight coupling between modules
+10. ❌ **Don't** skip architectural planning

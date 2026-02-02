@@ -1,0 +1,231 @@
+---
+description: Code formatting, style guides, and formatting standards
+globs: 
+alwaysApply: true
+---
+
+# Code Format and Style Standards
+
+## Automatic Formatting
+
+### Formatters
+
+- **ALWAYS** use automatic formatters:
+  - **Prettier** for JavaScript/TypeScript
+  - **ESLint** for JavaScript/TypeScript linting
+  - **Black** for Python
+  - **gofmt** for Go
+- **ALWAYS** configure format rules in project config files
+- **ALWAYS** enforce formatting in pre-commit hooks
+
+### Configuration Files
+
+- Store formatting configuration in project root:
+  - `.prettierrc` or `prettier.config.js`
+  - `.eslintrc.js` or `.eslintrc.json`
+  - `pyproject.toml` (for Black)
+- Commit configuration files to version control
+- Use consistent configuration across the project
+
+```json
+// ✅ CORRECT: .prettierrc configuration
+{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 80,
+  "tabWidth": 2,
+  "useTabs": false
+}
+```
+
+## Indentation
+
+- **ALWAYS** maintain consistent indentation (2 or 4 spaces, never tabs)
+- Choose one style and use it throughout the project
+- Configure in formatter settings
+- Most projects use 2 spaces for JavaScript/TypeScript
+
+```typescript
+// ✅ CORRECT: 2-space indentation
+function example() {
+  if (condition) {
+    doSomething();
+  }
+}
+```
+
+## Style Guides
+
+### Language-Specific Guides
+
+- **ALWAYS** follow language-specific style guides:
+  - **JavaScript/TypeScript**: Airbnb Style Guide
+  - **Python**: PEP 8
+  - **Java**: Google Java Style Guide
+  - **C#**: Microsoft C# Coding Conventions
+- Configure linters to enforce style guide rules
+- Use ESLint plugins for style guide enforcement
+
+### ESLint Configuration
+
+```json
+// ✅ CORRECT: ESLint with Airbnb config
+{
+  "extends": [
+    "airbnb-base",
+    "airbnb-typescript/base",
+    "prettier"
+  ],
+  "rules": {
+    "no-console": "warn",
+    "no-unused-vars": "error"
+  }
+}
+```
+
+## Code Readability
+
+### Self-Documenting Code
+
+- **ALWAYS** write code that is self-documenting with clear names
+- Use descriptive variable and function names
+- Avoid abbreviations unless widely understood
+- Make code intent clear through naming
+
+```typescript
+// ❌ WRONG: Unclear naming
+const u = getUser(id);
+const d = processData(u);
+
+// ✅ CORRECT: Self-documenting
+const user = getUserById(userId);
+const processedUserData = processUserData(user);
+```
+
+### Comments
+
+- **ALWAYS** add comments only for complex logic or non-obvious decisions
+- **NEVER** comment obvious code
+- Use JSDoc comments for public APIs
+- Keep comments up-to-date with code changes
+- Explain "why", not "what"
+
+```typescript
+// ❌ WRONG: Obvious comment
+// Increment counter
+counter++;
+
+// ✅ CORRECT: Useful comment
+// Use bitwise operation for performance (10x faster than modulo)
+const isEven = (n & 1) === 0;
+
+// ✅ CORRECT: JSDoc for public API
+/**
+ * Calculates the total price including tax and discounts
+ * @param basePrice - The base price before tax
+ * @param taxRate - The tax rate as a decimal (e.g., 0.08 for 8%)
+ * @param discount - Optional discount amount
+ * @returns The final price after tax and discount
+ */
+function calculateTotalPrice(basePrice: number, taxRate: number, discount?: number): number {
+  // Implementation
+}
+```
+
+## Pre-Commit Hooks
+
+### Formatting Enforcement
+
+- **ALWAYS** enforce formatting in pre-commit hooks
+- Use lint-staged to format only changed files
+- Block commits if formatting fails
+- Auto-fix formatting issues when possible
+
+```json
+// ✅ CORRECT: lint-staged configuration
+{
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}
+```
+
+## Import Organization
+
+- Group imports logically:
+  1. External dependencies (npm packages)
+  2. Internal modules (project code)
+  3. Relative imports
+- Sort imports alphabetically within groups
+- Remove unused imports
+
+```typescript
+// ✅ CORRECT: Organized imports
+// External dependencies
+import { Injectable, Logger } from '@nestjs/common';
+import { Repository } from 'typeorm';
+
+// Internal modules
+import { User } from '@avantodev/avanto-db';
+import { UserService } from '../user/user.service';
+
+// Relative imports
+import { CreateUserDto } from './domain/dtos/create-user.dto';
+```
+
+## Code Formatting Checklist
+
+Before committing code, ensure:
+- [ ] Code is formatted with Prettier/Black/gofmt
+- [ ] Linting passes without errors
+- [ ] Indentation is consistent
+- [ ] Imports are organized
+- [ ] Unused code is removed
+- [ ] Comments are meaningful and up-to-date
+- [ ] Code follows project style guide
+- [ ] Pre-commit hooks are configured
+
+## Formatting Tools Setup
+
+### Prettier
+
+```bash
+# Install
+npm install --save-dev prettier
+
+# Create config
+echo '{}' > .prettierrc
+
+# Format all files
+npx prettier --write "**/*.{ts,tsx,js,jsx,json,md}"
+```
+
+### ESLint
+
+```bash
+# Install
+npm install --save-dev eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin
+
+# Create config
+npx eslint --init
+```
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** skip automatic formatting
+2. ❌ **Don't** mix indentation styles (spaces vs tabs)
+3. ❌ **Don't** use inconsistent formatting
+4. ❌ **Don't** comment obvious code
+5. ❌ **Don't** leave unused imports
+6. ❌ **Don't** ignore linting errors
+7. ❌ **Don't** skip pre-commit hooks
+8. ❌ **Don't** use unclear variable names
+9. ❌ **Don't** forget to update comments when code changes
+10. ❌ **Don't** ignore style guide violations

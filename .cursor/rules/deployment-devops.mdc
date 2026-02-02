@@ -1,0 +1,224 @@
+---
+description: Deployment strategies, CI/CD, Docker, and DevOps best practices
+globs: 
+alwaysApply: true
+---
+
+# Deployment and DevOps Standards
+
+## Environment Management
+
+### Environment Variables
+
+- **ALWAYS** use separate environment variables per environment
+  - `.env.development` for development
+  - `.env.staging` for staging
+  - `.env.production` for production
+- **NEVER** commit `.env` files to version control
+- **ALWAYS** validate environment variables at application startup
+- **NEVER** share credentials between environments
+- Use environment-specific configuration files
+
+### Environment Configuration
+
+- Store environment-specific settings in configuration files
+- Use environment variables for sensitive data (secrets, API keys)
+- Document required environment variables in README
+- Provide example `.env.example` file (without secrets)
+
+## Docker Best Practices
+
+### Dockerfile Standards
+
+- **ALWAYS** use Docker multistage builds to reduce image size
+- **ALWAYS** include health checks in Dockerfiles
+- **ALWAYS** keep `.dockerignore` updated
+- Use specific version tags, not `latest`
+- Minimize layers and optimize build cache
+
+```dockerfile
+# ✅ CORRECT: Multistage Docker build
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+
+FROM node:18-alpine AS runtime
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY package*.json ./
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node healthcheck.js
+
+EXPOSE 3000
+CMD ["node", "dist/main.js"]
+```
+
+### .dockerignore
+
+- **ALWAYS** keep `.dockerignore` updated
+- Exclude unnecessary files from Docker build context:
+  - `node_modules/`
+  - `.git/`
+  - `.env*`
+  - `*.log`
+  - `dist/` (if building in container)
+  - Test files and documentation
+
+## CI/CD Pipelines
+
+### Pipeline Stages
+
+- **ALWAYS** follow this pipeline order: lint → test → build → deploy
+- Run all stages automatically before merge
+- Fail the build if any stage fails
+- Use separate pipelines for different environments
+
+```yaml
+# ✅ CORRECT: CI/CD pipeline structure
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+lint:
+  script:
+    - yarn lint
+
+test:
+  script:
+    - yarn test
+    - yarn test:coverage
+
+build:
+  script:
+    - yarn build
+  artifacts:
+    paths:
+      - dist/
+
+deploy:
+  script:
+    - ./deploy.sh
+  only:
+    - main
+```
+
+### Pre-Deploy Validation
+
+- Run linting before tests
+- Run all tests (unit, integration, E2E)
+- Build application to verify compilation
+- Run security scans
+- Check code coverage thresholds
+
+## Deployment Strategies
+
+### Staging Environment
+
+- **ALWAYS** ensure staging mirrors production
+- Test all changes in staging before production
+- Use production-like data volumes and configurations
+- Perform load testing in staging
+
+### Deployment Strategies
+
+- **ALWAYS** implement deployment strategies:
+  - **Blue-Green**: Run two identical environments, switch traffic
+  - **Rolling**: Gradually replace instances
+  - **Canary**: Deploy to subset, monitor, then full rollout
+- Have rollback plan ready before deployment
+- Monitor deployments closely
+
+### Semantic Versioning
+
+- **ALWAYS** use semantic versioning (MAJOR.MINOR.PATCH)
+- **MAJOR**: Breaking changes
+- **MINOR**: New features, backward compatible
+- **PATCH**: Bug fixes, backward compatible
+- Tag releases in version control
+
+## Pre-Deploy Checklist
+
+Before each deployment, verify:
+
+- [ ] All tests pass (unit, integration, E2E)
+- [ ] Code review completed and approved
+- [ ] DB migrations tested in staging
+- [ ] Environment variables configured correctly
+- [ ] Secrets rotated if necessary
+- [ ] Documentation updated
+- [ ] Rollback plan defined
+- [ ] Monitoring and alerts configured
+- [ ] Performance tested with realistic data
+- [ ] Security scan passed without critical vulnerabilities
+- [ ] Recent DB backup available
+- [ ] Stakeholders notified of deployment
+
+## Deployment Process
+
+1. **Preparation**
+   - Review changes and test results
+   - Verify environment configuration
+   - Prepare rollback plan
+   - Notify stakeholders
+
+2. **Deployment**
+   - Deploy to staging first
+   - Verify staging deployment
+   - Deploy to production
+   - Monitor deployment metrics
+
+3. **Post-Deployment**
+   - Verify application health
+   - Check logs for errors
+   - Monitor performance metrics
+   - Confirm functionality
+
+4. **Rollback** (if needed)
+   - Execute rollback plan immediately
+   - Verify rollback success
+   - Investigate issues
+   - Document lessons learned
+
+## Production Deployment Rules
+
+- **NEVER** deploy to production without going through staging
+- **NEVER** make direct commits to main branch
+- **NEVER** skip code reviews
+- **ALWAYS** have rollback plan ready
+- **ALWAYS** monitor deployments in real-time
+- **ALWAYS** have recent backup before deployment
+
+## Infrastructure as Code
+
+- Use Infrastructure as Code (IaC) tools (Terraform, CloudFormation)
+- Version control infrastructure definitions
+- Test infrastructure changes in staging
+- Document infrastructure architecture
+
+## Monitoring Deployment
+
+- Monitor application health after deployment
+- Check error rates and response times
+- Verify all services are running
+- Monitor resource usage (CPU, memory, disk)
+- Set up alerts for critical metrics
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** commit `.env` files
+2. ❌ **Don't** deploy to production without staging
+3. ❌ **Don't** skip code reviews
+4. ❌ **Don't** make direct commits to main branch
+5. ❌ **Don't** skip testing before deployment
+6. ❌ **Don't** ignore deployment warnings
+7. ❌ **Don't** skip rollback planning
+8. ❌ **Don't** share credentials between environments
+9. ❌ **Don't** use `latest` tags in production
+10. ❌ **Don't** skip monitoring after deployment

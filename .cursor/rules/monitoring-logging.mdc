@@ -1,0 +1,268 @@
+---
+description: Monitoring, logging, observability, and alerting standards
+globs: 
+alwaysApply: true
+---
+
+# Monitoring and Logging Standards
+
+## Structured Logging
+
+### Log Format
+
+- **ALWAYS** use structured logs in JSON format
+- **ALWAYS** implement centralized logging
+- **ALWAYS** include in logs:
+  - Timestamp (ISO 8601 format)
+  - Log level (DEBUG, INFO, WARN, ERROR)
+  - Relevant context (user ID, request ID, operation name)
+  - Correlation IDs for request tracing
+- **NEVER** log sensitive information (passwords, tokens, PII)
+
+```typescript
+// ✅ CORRECT: Structured logging
+this.logger.log({
+  timestamp: new Date().toISOString(),
+  level: 'INFO',
+  message: 'User created successfully',
+  context: {
+    userId: user.id,
+    email: user.email, // Only if not sensitive
+    operation: 'createUser',
+    correlationId: request.correlationId,
+  },
+});
+```
+
+### Log Levels
+
+- **DEBUG**: Detailed debugging information (development only)
+- **INFO**: General informational messages (operations, state changes)
+- **WARN**: Warning messages (deprecated features, recoverable errors)
+- **ERROR**: Error messages (exceptions, failures)
+- Use appropriate log levels for different scenarios
+
+```typescript
+// ✅ CORRECT: Log level usage
+this.logger.debug(`Processing request with params: ${JSON.stringify(params)}`);
+this.logger.log(`User ${userId} logged in successfully`);
+this.logger.warn(`Deprecated API endpoint used: ${endpoint}`);
+this.logger.error(`Failed to process payment: ${error.message}`, {
+  stack: error.stack,
+  userId,
+  orderId,
+});
+```
+
+## Observability Pillars
+
+### Three Pillars of Observability
+
+- **ALWAYS** implement the three pillars:
+  1. **Logs**: Event records with context
+  2. **Metrics**: Numerical measurements over time
+  3. **Traces**: Request flow through distributed systems
+
+### Logging
+
+- Use structured, searchable log format
+- Include correlation IDs for request tracing
+- Log at appropriate levels
+- Never log sensitive data
+
+### Metrics
+
+- Monitor key service metrics:
+  - Response times (p50, p95, p99)
+  - Error rates
+  - Request throughput
+  - Resource usage (CPU, memory, disk)
+- Use time-series databases (Prometheus, InfluxDB)
+- Create dashboards for visualization
+
+### Tracing
+
+- Implement distributed tracing for microservices
+- Use correlation IDs to track requests across services
+- Trace critical user journeys
+- Use tools like Jaeger, Zipkin, or OpenTelemetry
+
+## Monitoring
+
+### Key Metrics to Monitor
+
+- **Response times**: API endpoint response times
+- **Error rates**: Percentage of failed requests
+- **Resource usage**: CPU, memory, disk, network
+- **Business metrics**: User actions, conversions, transactions
+- **Database metrics**: Query performance, connection pool usage
+
+### Dashboards
+
+- **ALWAYS** create dashboards for key service metrics
+- Include:
+  - Real-time metrics
+  - Historical trends
+  - Alert status
+  - Service health indicators
+- Use tools like Grafana, Datadog, or CloudWatch
+
+### Automated Alerts
+
+- **ALWAYS** configure automated alerts based on thresholds
+- Set up alerts for:
+  - High error rates
+  - Slow response times
+  - Resource exhaustion
+  - Service downtime
+- Use appropriate alert channels (email, Slack, PagerDuty)
+- Avoid alert fatigue (set meaningful thresholds)
+
+```yaml
+# ✅ CORRECT: Alert configuration example
+alerts:
+  - name: HighErrorRate
+    condition: error_rate > 5%
+    duration: 5m
+    severity: critical
+    notification: pagerduty
+    
+  - name: SlowResponseTime
+    condition: p95_response_time > 1000ms
+    duration: 10m
+    severity: warning
+    notification: slack
+```
+
+## Log Retention
+
+- **ALWAYS** maintain log retention policies according to compliance
+- Define retention periods based on:
+  - Compliance requirements (GDPR, HIPAA, PCI DSS)
+  - Business needs
+  - Storage costs
+- Archive old logs before deletion
+- Document retention policies
+
+## Sensitive Data Handling
+
+### Never Log
+
+- **NEVER** log sensitive information:
+  - Passwords
+  - API keys or tokens
+  - Credit card numbers
+  - Social security numbers
+  - PII (Personally Identifiable Information)
+  - Authentication tokens
+
+### Masking/Redaction
+
+- **ALWAYS** mask/redact sensitive fields in logs
+- Create utility functions for data sanitization
+- Redact before logging, not after
+
+```typescript
+// ✅ CORRECT: Data sanitization
+function sanitizeForLogging(data: any): any {
+  const sensitiveFields = ['password', 'token', 'apiKey', 'creditCard'];
+  const sanitized = { ...data };
+  
+  for (const field of sensitiveFields) {
+    if (sanitized[field]) {
+      sanitized[field] = '***REDACTED***';
+    }
+  }
+  
+  return sanitized;
+}
+
+this.logger.log('User data', sanitizeForLogging(userData));
+```
+
+## Correlation IDs
+
+- **ALWAYS** include correlation IDs in logs
+- Generate correlation ID at request entry point
+- Propagate correlation ID through all service calls
+- Use correlation ID to trace requests across services
+
+```typescript
+// ✅ CORRECT: Correlation ID middleware
+@Injectable()
+export class CorrelationIdMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction) {
+    const correlationId = req.headers['x-correlation-id'] || randomUUID();
+    req['correlationId'] = correlationId;
+    res.setHeader('x-correlation-id', correlationId);
+    
+    // Add to logger context
+    this.logger.setContext(correlationId);
+    next();
+  }
+}
+```
+
+## Logging Best Practices
+
+### Context
+
+- Include relevant context in log messages
+- Add context at method entry/exit for important operations
+- Include user IDs, request IDs, operation names
+- Use structured format for easy parsing
+
+### Performance
+
+- Don't log large objects in production
+- Use appropriate log levels (avoid DEBUG in production)
+- Use async logging for high-throughput scenarios
+- Consider log sampling for high-volume endpoints
+
+### Error Logging
+
+- **ALWAYS** log errors with stack traces
+- Include context about what operation failed
+- Log errors at ERROR level
+- Include correlation IDs in error logs
+
+```typescript
+// ✅ CORRECT: Error logging
+try {
+  await this.processPayment(order);
+} catch (error) {
+  this.logger.error('Payment processing failed', {
+    error: error.message,
+    stack: error.stack,
+    orderId: order.id,
+    userId: order.userId,
+    correlationId: request.correlationId,
+  });
+  throw error;
+}
+```
+
+## Monitoring Checklist
+
+Before deploying, ensure:
+- [ ] Structured logging is implemented
+- [ ] Correlation IDs are included
+- [ ] Sensitive data is not logged
+- [ ] Key metrics are being collected
+- [ ] Dashboards are created
+- [ ] Alerts are configured
+- [ ] Log retention policies are defined
+- [ ] Tracing is implemented (if applicable)
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** log sensitive information
+2. ❌ **Don't** use unstructured log formats
+3. ❌ **Don't** skip correlation IDs
+4. ❌ **Don't** log at wrong levels (DEBUG in production)
+5. ❌ **Don't** ignore error logs
+6. ❌ **Don't** skip monitoring setup
+7. ❌ **Don't** create alert fatigue
+8. ❌ **Don't** log large objects
+9. ❌ **Don't** skip log retention policies
+10. ❌ **Don't** ignore monitoring metrics

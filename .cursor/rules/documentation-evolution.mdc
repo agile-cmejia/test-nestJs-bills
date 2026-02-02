@@ -1,0 +1,30 @@
+---
+description: Documentation hierarchy, no-orphan-fixes, and progress logging
+globs: "*"
+alwaysApply: true
+---
+
+# Documentation Evolution Rules
+
+## Hierarchy
+
+1. Constitutional: `.cursor/rules/global.mdc`
+2. Reference: `docs/reference/*.md`
+3. Tactical: `src/**/agents.md`
+4. Execution: `logs/progress.txt`
+
+## Rules
+
+- No orphan fixes: every bug fix updates at least one `.md` file.
+- Date every entry with `YYYY-MM-DD`.
+- Be specific; avoid vague notes.
+- One source of truth; reference instead of duplicating.
+- Archive completed specs: move `docs/specs/*.json` to `docs/done_specs/`.
+
+## Progress Log Format
+
+[YYYY-MM-DD HH:MM] ✅ STORY-ID: Short description
+- Bullet summary of what changed
+- Acceptance criteria passed
+- Docs updated
+

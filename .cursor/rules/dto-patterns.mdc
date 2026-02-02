@@ -1,0 +1,255 @@
+---
+description: DTO patterns, validation, and Swagger documentation standards
+globs: "src/**/*.dto.ts"
+alwaysApply: true
+---
+
+# DTO Patterns
+
+## DTO Structure
+
+### DTO Naming Conventions
+
+- **ALWAYS** use descriptive DTO names:
+  - `Create{Entity}Dto` - For creation operations
+  - `Update{Entity}Dto` - For update operations (all fields optional)
+  - `{Entity}ResponseDto` - For response objects
+  - `Find{Entity}Dto` - For query parameters
+- Use kebab-case for file names: `create-purchase-order.dto.ts`
+
+### DTO Organization
+
+- **ALWAYS** place DTOs in `dto/` directory within feature module
+- Create `index.ts` barrel export for easy imports
+- Group related DTOs in same file when appropriate (e.g., `shared.dto.ts`)
+
+```typescript
+// ✅ CORRECT: DTO file structure
+// dto/index.ts
+export * from './create-purchase-order.dto';
+export * from './update-purchase-order.dto';
+export * from './purchase-order-response.dto';
+export * from './shared.dto';
+```
+
+## Validation Decorators
+
+### Required Fields
+
+- **ALWAYS** use `@IsNotEmpty()` for required fields
+- **ALWAYS** use `@IsString()`, `@IsNumber()`, `@IsBoolean()`, etc. for type validation
+- **ALWAYS** use `@IsOptional()` for optional fields
+- Combine decorators for comprehensive validation
+
+```typescript
+// ✅ CORRECT: Required field validation
+@ApiProperty({ description: 'Purchase Order Number' })
+@IsNotEmpty()
+@IsString()
+poNumber: string;
+
+@ApiProperty({ description: 'Purchase Order Date' })
+@IsNotEmpty()
+@IsDateString()
+poDate: string;
+```
+
+### Optional Fields
+
+- **ALWAYS** use `@IsOptional()` before other validators for optional fields
+- Use `@ApiPropertyOptional()` instead of `@ApiProperty()` for optional fields
+
+```typescript
+// ✅ CORRECT: Optional field validation
+@ApiPropertyOptional({ description: 'Client order ID for idempotency' })
+@IsOptional()
+@IsString()
+clientOrderId?: string;
+```
+
+### Nested Objects
+
+- **ALWAYS** use `@ValidateNested()` for nested objects
+- **ALWAYS** use `@Type(() => NestedDto)` from `class-transformer` for nested DTOs
+- Create separate DTO classes for nested objects
+
+```typescript
+// ✅ CORRECT: Nested object validation
+@ApiProperty({ description: 'Purchase Order information' })
+@IsNotEmpty()
+@ValidateNested()
+@Type(() => PoInfoDto)
+poInfo: PoInfoDto;
+
+// Separate DTO for nested object
+export class PoInfoDto {
+  @ApiProperty({ description: 'PO Number' })
+  @IsNotEmpty()
+  @IsString()
+  poNumber: string;
+
+  @ApiProperty({ description: 'PO Date' })
+  @IsNotEmpty()
+  @IsDateString()
+  poDate: string;
+}
+```
+
+### Arrays
+
+- **ALWAYS** use `@IsArray()` and `@ValidateNested({ each: true })` for arrays
+- Use `@Type(() => ItemDto)` for array items
+
+```typescript
+// ✅ CORRECT: Array validation
+@ApiProperty({ description: 'Line items', type: [LineItemDto] })
+@IsArray()
+@ValidateNested({ each: true })
+@Type(() => LineItemDto)
+lineItems: LineItemDto[];
+```
+
+### Enums
+
+- **ALWAYS** use `@IsEnum()` for enum fields
+- Define enums in DTO file or shared DTO file
+- Document enum values in Swagger
+
+```typescript
+// ✅ CORRECT: Enum validation
+export enum OrderStatus {
+  DRAFT = 'Draft',
+  SUBMITTED = 'Submitted',
+  APPROVED = 'Approved',
+}
+
+@ApiProperty({ description: 'Order status', enum: OrderStatus })
+@IsNotEmpty()
+@IsEnum(OrderStatus)
+orderStatus: OrderStatus;
+```
+
+## Swagger Documentation
+
+### API Property Decorators
+
+- **ALWAYS** use `@ApiProperty()` for required fields
+- **ALWAYS** use `@ApiPropertyOptional()` for optional fields
+- **ALWAYS** include `description` in decorator
+- Use `type` parameter for complex types
+- Use `enum` parameter for enum types
+
+```typescript
+// ✅ CORRECT: Swagger documentation
+@ApiProperty({
+  description: 'Purchase Order Number',
+  example: 'PO-2025-001',
+})
+@IsNotEmpty()
+@IsString()
+poNumber: string;
+
+@ApiPropertyOptional({
+  description: 'Client order ID for idempotency',
+  example: 'CLIENT-12345',
+})
+@IsOptional()
+@IsString()
+clientOrderId?: string;
+
+@ApiProperty({
+  description: 'Order status',
+  enum: OrderStatus,
+  example: OrderStatus.SUBMITTED,
+})
+@IsEnum(OrderStatus)
+orderStatus: OrderStatus;
+```
+
+### Response DTOs
+
+- **ALWAYS** document response DTOs with `@ApiResponse()` in controllers
+- Include status codes and descriptions
+- Use `type` parameter to reference DTO class
+
+```typescript
+// ✅ CORRECT: Response documentation
+@ApiResponse({
+  status: HttpStatus.CREATED,
+  description: 'Purchase Order created successfully',
+  type: PurchaseOrderResponseDto,
+})
+@ApiResponse({
+  status: HttpStatus.BAD_REQUEST,
+  description: 'Invalid request data',
+})
+async createPurchaseOrder(@Body() dto: CreatePurchaseOrderDto): Promise<PurchaseOrderResponseDto> {
+  // ...
+}
+```
+
+## Update DTOs
+
+### Partial Update Pattern
+
+- **ALWAYS** make all fields optional in Update DTOs
+- Use `@IsOptional()` for all fields
+- Allow partial updates (only provided fields are updated)
+
+```typescript
+// ✅ CORRECT: Update DTO pattern
+export class UpdatePurchaseOrderDto {
+  @ApiPropertyOptional({ description: 'Purchase Order information' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PoInfoDto)
+  poInfo?: PoInfoDto;
+
+  @ApiPropertyOptional({ description: 'Line items', type: [LineItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LineItemDto)
+  lineItems?: LineItemDto[];
+}
+```
+
+## Shared DTOs
+
+### Reusable DTOs
+
+- **ALWAYS** create shared DTOs for commonly used structures
+- Place in `shared.dto.ts` or `dto/shared.dto.ts`
+- Export enums and shared DTOs for reuse
+
+```typescript
+// ✅ CORRECT: Shared DTOs
+// dto/shared.dto.ts
+export enum FurnitureCategory {
+  SEATING = 'Seating',
+  STORAGE = 'Storage',
+  TABLES = 'Tables',
+}
+
+export class OptionsDto {
+  @ApiPropertyOptional({ description: 'Option identifier' })
+  @IsOptional()
+  @IsString()
+  optionNumber?: string;
+}
+```
+
+## DTO Checklist
+
+Before creating or modifying DTOs, ensure:
+
+- [ ] All required fields have `@IsNotEmpty()` and type validators
+- [ ] All optional fields have `@IsOptional()` before other validators
+- [ ] Nested objects use `@ValidateNested()` and `@Type()`
+- [ ] Arrays use `@IsArray()` and `@ValidateNested({ each: true })`
+- [ ] Enums use `@IsEnum()` with enum class
+- [ ] All fields have `@ApiProperty()` or `@ApiPropertyOptional()` with descriptions
+- [ ] Update DTOs have all fields optional
+- [ ] Response DTOs are documented in controller `@ApiResponse()` decorators
+- [ ] Shared DTOs are in separate file for reuse
+- [ ] DTOs are exported via barrel export (`index.ts`)

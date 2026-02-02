@@ -1,0 +1,49 @@
+---
+description: Ralph Protocol for atomic stories and binary acceptance criteria
+globs: "docs/specs/**/*.json"
+alwaysApply: true
+---
+
+# Ralph Protocol: stories.json
+
+## Atomicity
+
+- A story is atomic if it can be completed in one context window.
+- If it requires research, it is not a story; split it first.
+
+## Binary Acceptance Criteria
+
+- Criteria must be objectively true or false.
+- Avoid subjective language.
+
+Examples:
+- Bad: "Make the UI look modern"
+- Good: "Button uses class 'rounded-lg'"
+- Bad: "Add error handling"
+- Good: "API returns 400 on invalid JSON"
+
+## Self-Verification
+
+- Agent must read `stories.json`.
+- Validate code against `acceptance_criteria`.
+- Only then set `passes: true`.
+
+## Template
+
+{
+  "epic": "User Authentication",
+  "stories": [
+    {
+      "id": "AUTH-01",
+      "description": "Create Login Form Component",
+      "files_to_touch": ["src/components/LoginForm.tsx"],
+      "acceptance_criteria": [
+        "Component exports 'LoginForm'",
+        "Contains email and password input fields",
+        "Submit button is disabled when fields are empty"
+      ],
+      "passes": false
+    }
+  ]
+}
+

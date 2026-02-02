@@ -1,0 +1,66 @@
+---
+description: GLOBAL CONSTITUTION - ALWAYS ACTIVE
+globs: "*"
+alwaysApply: true
+---
+
+# Strata Dev Framework Constitution
+
+## Purpose
+
+This file defines immutable rules. Keep it short (< 200 lines).
+
+## Core Mandates
+
+1. Follow the PPRE cycle: PRIME -> PLAN -> RESET -> EXECUTE.
+2. No code changes without a PLAN.
+3. Reset context between PLAN and EXECUTE.
+4. If scope changes, return to PRIME + PLAN.
+
+## Disk-Based Brain
+
+1. Do not rely on chat history for memory.
+2. Move intelligence into files.
+3. Every fix must update a Markdown artifact.
+
+## Documentation Evolution
+
+1. No orphan fixes: update at least one `.md` file per bug fix.
+2. Date every entry with `YYYY-MM-DD`.
+3. Be specific; avoid vague statements.
+4. One source of truth; reference instead of duplicating.
+5. Archive completed specs to `docs/done_specs/`.
+
+## Context Sharding
+
+1. Load only the docs relevant to the task.
+2. Use `docs/reference/*.md` for durable context.
+3. Use `src/**/agents.md` for local, tactical memory.
+
+## Execution Discipline
+
+1. Atomic tasks only; split if research is required.
+2. Acceptance criteria must be binary (true/false).
+3. Self-verify against `stories.json` before marking `passes: true`.
+
+## Testing Requirements (MANDATORY)
+
+**No development is complete without passing tests.**
+
+1. **Before finishing ANY code change**, run:
+   - `yarn test` - Unit tests (Jest)
+   - `yarn test:e2e` - E2E tests (Supertest)
+2. All new features require:
+   - Minimum 5 unit tests (`*.spec.ts`)
+   - E2E tests for all endpoints (`test/*.e2e-spec.ts`)
+3. All bug fixes require:
+   - Minimum 2 regression tests
+4. Minimum 80% test coverage (`yarn test:cov`)
+5. Tests MUST pass before marking task as complete.
+6. See `.cursor/rules/testing-standards-typescript.mdc` for detailed patterns.
+
+## Safety Rails
+
+1. No secrets in repo files.
+2. Use environment variables for credentials.
+3. Follow repository lint and format rules.

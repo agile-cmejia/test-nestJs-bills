@@ -1,0 +1,39 @@
+---
+description: Strata Dev Framework overview and core mandates
+globs: "*"
+alwaysApply: true
+---
+
+# Strata Dev Framework Overview
+
+## Mission
+
+We do not just ship code; we architect the system that ships the code.
+
+## Core Principle: Disk-Based Brain
+
+- Do not rely on chat history; move intelligence into files.
+- Every fix must leave the system smarter than before.
+- If a bug is fixed in code, it must be codified in documentation.
+
+## Context Architecture
+
+- Constitution: `.cursor/rules/global.mdc` (immutable laws, < 200 lines).
+- Reference docs: `docs/reference/*.md` (context sharding, load only what is needed).
+- Fractal memory: `src/**/agents.md` (local lessons, gotchas, conventions).
+- Input contract: `docs/specs/stories.json` (atomic tasks with binary criteria).
+
+## Golden Rule (System Evolution)
+
+When a bug occurs or an agent gets stuck:
+
+1. Fix the code.
+2. Codify the lesson in a Markdown file:
+   - Logic error -> `src/**/agents.md`
+   - Style error -> `.cursor/rules/global.mdc`
+   - Process error -> `docs/reference/workflow.md`
+
+## Mandatory
+
+If you fix a bug manually and do not update a `.md` file, the protocol fails.
+

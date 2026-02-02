@@ -1,0 +1,262 @@
+---
+description: Git workflow, branching strategy, commits, and code review standards
+globs: 
+alwaysApply: true
+---
+
+# Git Workflow Standards
+
+## Branch Strategy
+
+### Main Branch
+
+- **ALWAYS** keep `main` branch production-ready
+- **NEVER** make direct commits to main branch
+- **ALWAYS** use pull requests to merge into main
+- Protect main branch with required reviews and status checks
+
+### Feature Branches
+
+- **ALWAYS** create feature branches: `feature/<change-id>` - one branch per OpenSpec change
+- Use OpenSpec change ID as branch name (kebab-case, verb-led)
+- Keep feature branches focused on a single OpenSpec change
+- Delete feature branches after merging
+
+```bash
+# ✅ CORRECT: Feature branch naming (OpenSpec change-based)
+feature/add-database-mcp-server
+feature/update-supervisor-pattern
+feature/refactor-audit-logging
+```
+
+### Branch Naming Conventions
+
+- Use kebab-case for branch names
+- Prefix with type: `feature/`, `bugfix/`, `hotfix/`, `release/`
+- Be descriptive but concise
+- Examples:
+  - `feature/add-user-profile`
+  - `bugfix/fix-login-error`
+  - `hotfix/security-patch`
+  - `release/v1.2.0`
+
+## Commit Messages
+
+### Conventional Commits
+
+- **ALWAYS** use conventional commits for clear messages
+- Format: `<type>(<scope>): <subject>`
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+- **ALWAYS** track changes against `openspec/changes` folder (spec-driven commits)
+- Commit frequently with descriptive messages
+
+```bash
+# ✅ CORRECT: Conventional commit examples
+feat(agents): add supervisor agent with task decomposition
+fix(mcp-server): resolve database connection retry logic
+docs(langgraph): update workflow state management docs
+test(audit): add integration tests for audit logging
+refactor(mcp-servers): extract common error handling
+chore(deps): update langgraph to v0.2.1
+```
+
+### Commit Message Best Practices
+
+- Use imperative mood ("add feature" not "added feature")
+- Keep subject line under 50 characters
+- Add detailed description if needed (separated by blank line)
+- Reference issue numbers when applicable
+- Explain "what" and "why", not "how"
+
+```bash
+# ✅ CORRECT: Detailed commit message
+feat(orders): add order cancellation functionality
+
+- Add cancelOrder method to OrderService
+- Implement cancellation validation logic
+- Add cancellation reason tracking
+- Update API documentation
+
+Closes #123
+```
+
+## Code Reviews
+
+### Review Requirements
+
+- **ALWAYS** require code reviews for all PRs
+- **ALWAYS** require at least one approver before merge
+- **NEVER** skip code reviews
+- Review should check:
+  - Code quality and standards
+  - Test coverage
+  - Security considerations
+  - Performance implications
+  - Documentation updates
+
+### Review Process
+
+1. **Create Pull Request**
+   - Provide clear description
+   - Link related issues
+   - Add screenshots if UI changes
+   - Request specific reviewers if needed
+
+2. **Review Checklist**
+   - Code follows standards
+   - Tests are included and passing
+   - Documentation is updated
+   - No security issues
+   - No breaking changes (or documented)
+
+3. **Address Feedback**
+   - Respond to all comments
+   - Make requested changes
+   - Re-request review after changes
+
+4. **Merge**
+   - Squash commits if needed
+   - Delete feature branch after merge
+   - Update related issues
+
+## Pre-Commit Hooks
+
+### Linting and Formatting
+
+- **ALWAYS** use pre-commit hooks for linting and formatting
+- Configure hooks to run automatically
+- Block commits if linting or formatting fails
+- Use `pre-commit` framework with hooks for black, ruff, mypy, and pytest
+
+```yaml
+# ✅ CORRECT: .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.10
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.8
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: poetry run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: mypy
+        name: mypy
+        entry: poetry run mypy src
+        language: system
+        pass_filenames: false
+        always_run: true
+```
+
+### Testing
+
+- **ALWAYS** run tests before push
+- Configure pre-push hook to run tests: `poetry run pytest`
+- Block push if tests fail
+- Ensure all tests pass locally before pushing
+- Run `openspec validate <change-id> --strict` before pushing OpenSpec changes
+
+## Git Best Practices
+
+### Commit Frequency
+
+- Commit frequently with descriptive messages
+- Make small, focused commits
+- Each commit should represent a logical change
+- Don't commit broken code
+
+### Commit Contents
+
+- Don't commit generated files
+- Don't commit dependencies (use package managers)
+- Don't commit secrets or credentials
+- Don't commit large binary files
+- Use `.gitignore` appropriately
+
+### Pull Request Best Practices
+
+- Keep PRs focused and small when possible
+- Provide clear PR descriptions
+- Link related issues
+- Add reviewers
+- Respond to feedback promptly
+- Keep PRs up-to-date with main branch
+
+## Collaboration
+
+### Pair Programming
+
+- Practice pair programming for complex code
+- Share knowledge through code reviews
+- Use pair programming for:
+  - Complex algorithms
+  - Security-sensitive code
+  - Architecture decisions
+  - Onboarding new team members
+
+### Communication
+
+- Use asynchronous communication for non-urgent updates
+- Document decisions in code comments or ADRs
+- Share knowledge in workshops and tech talks
+- Use daily standups (15 minutes maximum)
+- Regular retrospectives for continuous improvement
+
+## Spec-Driven Development Workflow
+
+- **ALWAYS** create OpenSpec change proposal before implementing features
+- Changes are tracked against `openspec/changes` folder
+- Implementation agent reads the spec, writes the code, and validator agent confirms it
+- Run `openspec validate <change-id> --strict` before creating PR
+
+```bash
+# Workflow:
+# 1. Create change proposal
+openspec proposal <change-id> "Description"
+
+# 2. Implement following tasks.md sequentially
+# 3. Run tests after each task
+poetry run pytest
+
+# 4. Validate before PR
+openspec validate <change-id> --strict
+
+# 5. Create PR with change-id as branch name
+git checkout -b feature/<change-id>
+```
+
+## Git Workflow Checklist
+
+Before creating a PR, ensure:
+- [ ] OpenSpec change proposal exists in `openspec/changes/<change-id>/`
+- [ ] Feature branch is created: `feature/<change-id>` (matches OpenSpec change ID)
+- [ ] Code follows project standards (Python, type hints, docstrings)
+- [ ] Tests are written and passing (minimum 5 for new features)
+- [ ] Linting and formatting pass (black, ruff, mypy)
+- [ ] Commit messages follow conventional format
+- [ ] OpenSpec validation passes: `openspec validate <change-id> --strict`
+- [ ] Documentation is updated
+- [ ] No secrets or credentials in code
+- [ ] PR description references OpenSpec change
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** make direct commits to main branch
+2. ❌ **Don't** skip code reviews
+3. ❌ **Don't** commit broken code
+4. ❌ **Don't** commit secrets or credentials
+5. ❌ **Don't** use vague commit messages
+6. ❌ **Don't** create huge PRs
+7. ❌ **Don't** ignore review feedback
+8. ❌ **Don't** skip pre-commit hooks
+9. ❌ **Don't** commit generated files
+10. ❌ **Don't** force push to shared branches

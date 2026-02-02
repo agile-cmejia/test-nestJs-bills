@@ -1,0 +1,34 @@
+---
+description: Fractal memory rules for src/**/agents.md
+globs: "src/**/agents.md"
+alwaysApply: true
+---
+
+# agents.md Fractal Memory
+
+## Purpose
+
+Store local, tactical knowledge per folder: lessons, gotchas, conventions, dependencies.
+
+## Structure
+
+# 🧠 Agent Memory: [Folder Name]
+
+## 📌 Critical Lessons
+- YYYY-MM-DD: Lesson learned with context
+
+## 🛑 Known Issues
+- Issue description and workaround
+
+## 🏗️ Local Conventions
+- "This folder uses X pattern because Y"
+
+## 🔗 Dependencies
+- "Module A depends on Module B for Z functionality"
+
+## Rules
+
+- Date every entry as YYYY-MM-DD.
+- Be specific and actionable.
+- Do not duplicate info; reference docs instead.
+

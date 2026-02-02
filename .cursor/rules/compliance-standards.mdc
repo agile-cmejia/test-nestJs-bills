@@ -1,0 +1,223 @@
+---
+description: Compliance requirements for GDPR, PCI DSS, HIPAA, and data protection
+globs: 
+alwaysApply: true
+---
+
+# Compliance Standards
+
+## GDPR (General Data Protection Regulation)
+
+### Data Collection and Consent
+
+- **ALWAYS** obtain explicit consent before collecting personal data
+- **ALWAYS** document what data is collected, why, and for how long
+- Provide clear privacy notices
+- Allow users to withdraw consent
+- Implement consent management system
+
+### Data Subject Rights
+
+- **ALWAYS** implement right to erasure (data deletion)
+- **ALWAYS** implement data portability (export user data)
+- **ALWAYS** provide access to personal data upon request
+- **ALWAYS** allow data rectification (correction)
+- Implement processes to handle data subject requests
+
+```typescript
+// ✅ CORRECT: GDPR data deletion
+async deleteUserData(userId: string): Promise<void> {
+  this.logger.log(`Deleting user data for GDPR compliance: ${userId}`);
+  
+  // Delete user data from all systems
+  await this.userRepository.delete({ id: userId });
+  await this.orderRepository.delete({ userId });
+  await this.analyticsService.deleteUserData(userId);
+  
+  // Log deletion for audit
+  await this.auditLogService.log({
+    action: 'GDPR_DATA_DELETION',
+    userId,
+    timestamp: new Date(),
+  });
+}
+```
+
+### Data Breach Notification
+
+- **ALWAYS** notify security breaches within 72 hours (GDPR requirement)
+- Have incident response plan ready
+- Document all security incidents
+- Notify affected users and authorities
+
+### Data Retention
+
+- **ALWAYS** implement data retention policies according to regulations
+- Delete data after retention period expires
+- Document retention periods for different data types
+- Automate data deletion where possible
+
+## PCI DSS (Payment Card Industry Data Security Standard)
+
+### Card Data Protection
+
+- **NEVER** store CVV or PIN
+- **ALWAYS** encrypt card data before storing
+- **ALWAYS** use tokenization for card data
+- **NEVER** log full card numbers
+- Use PCI-compliant payment processors
+
+```typescript
+// ❌ WRONG: Storing CVV
+interface PaymentData {
+  cardNumber: string;
+  cvv: string; // NEVER store CVV
+  expiryDate: string;
+}
+
+// ✅ CORRECT: Tokenization
+interface PaymentData {
+  token: string; // Tokenized card data
+  last4: string; // Only last 4 digits for display
+  expiryDate: string;
+}
+```
+
+### PCI Compliance Requirements
+
+- Use PCI-compliant payment gateways
+- Implement secure payment processing
+- Encrypt card data in transit and at rest
+- Restrict access to card data
+- Regular security assessments
+
+## HIPAA (Health Insurance Portability and Accountability Act)
+
+### Protected Health Information (PHI)
+
+- **ALWAYS** encrypt PHI (Protected Health Information)
+- **ALWAYS** implement audit logging for PHI access
+- **ALWAYS** sign BAAs (Business Associate Agreements) with vendors
+- Restrict access to PHI based on need-to-know
+- Implement access controls and authentication
+
+### Audit Logging
+
+- Log all access to PHI
+- Include: who, what, when, why
+- Retain audit logs according to HIPAA requirements
+- Make audit logs tamper-proof
+- Regular audit log reviews
+
+```typescript
+// ✅ CORRECT: HIPAA audit logging
+async accessPatientRecord(patientId: string, userId: string): Promise<PatientRecord> {
+  // Log access
+  await this.auditLogService.log({
+    action: 'PHI_ACCESS',
+    userId,
+    patientId,
+    timestamp: new Date(),
+    ipAddress: request.ip,
+    reason: 'Medical treatment',
+  });
+  
+  // Verify user has access
+  if (!await this.hasAccess(userId, patientId)) {
+    throw new ForbiddenException('Access denied to patient record');
+  }
+  
+  return await this.patientRepository.findOne({ id: patientId });
+}
+```
+
+## Data Retention Policies
+
+### Policy Implementation
+
+- **ALWAYS** implement data retention policies according to regulations
+- Document retention periods for:
+  - User data
+  - Transaction data
+  - Logs
+  - Audit trails
+- Automate data deletion after retention period
+- Archive data before deletion if required
+
+### Retention Periods
+
+- GDPR: Delete data when no longer needed
+- HIPAA: Minimum 6 years for most records
+- PCI DSS: Only store as long as necessary
+- Financial: Varies by jurisdiction (often 7 years)
+
+## Data Protection Measures
+
+### Encryption
+
+- Encrypt sensitive data at rest
+- Encrypt sensitive data in transit (TLS/SSL)
+- Use strong encryption algorithms (AES-256)
+- Manage encryption keys securely
+- Implement key rotation policies
+
+### Access Controls
+
+- Implement role-based access control (RBAC)
+- Principle of least privilege
+- Regular access reviews
+- Multi-factor authentication for sensitive data
+- Audit access to sensitive data
+
+## Compliance Documentation
+
+### Required Documentation
+
+- Privacy policy
+- Data processing agreements
+- Data retention policies
+- Incident response procedures
+- Security policies
+- Access control procedures
+
+### Documentation Maintenance
+
+- **ALWAYS** keep compliance documentation updated
+- Review documentation regularly
+- Update when regulations change
+- Make documentation accessible to relevant stakeholders
+
+## Compliance Checklist
+
+Before deploying, ensure:
+- [ ] GDPR requirements are implemented
+- [ ] Data subject rights are supported
+- [ ] PCI DSS compliance for payment processing
+- [ ] HIPAA compliance for health data (if applicable)
+- [ ] Data retention policies are defined
+- [ ] Encryption is implemented
+- [ ] Audit logging is in place
+- [ ] Access controls are configured
+- [ ] Compliance documentation is updated
+- [ ] Incident response plan is ready
+
+## Compliance Monitoring
+
+- Regular compliance audits
+- Monitor for regulation changes
+- Update processes when regulations change
+- Train team on compliance requirements
+- Document compliance efforts
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** collect data without consent
+2. ❌ **Don't** store data longer than necessary
+3. ❌ **Don't** ignore data subject requests
+4. ❌ **Don't** store CVV or PIN
+5. ❌ **Don't** skip encryption for sensitive data
+6. ❌ **Don't** ignore audit logging requirements
+7. ❌ **Don't** skip compliance documentation
+8. ❌ **Don't** delay breach notifications
+9. ❌ **Don't** skip access controls
+10. ❌ **Don't** ignore compliance regulations

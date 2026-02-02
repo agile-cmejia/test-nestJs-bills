@@ -1,0 +1,258 @@
+---
+description: TypeScript testing standards with Jest for NestJS RPC Core microservice
+globs: "**/*.spec.ts,test/**/*.ts"
+alwaysApply: true
+---
+
+# TypeScript Testing Standards
+
+## Testing Framework
+
+### Jest Configuration
+
+- **ALWAYS** use Jest as the testing framework
+- Configured in `package.json` with `ts-jest` transformer
+- Test files: `*.spec.ts` in `src/` directory
+- E2E tests: `test/` directory with `jest-e2e.json` config
+
+## Test File Organization
+
+### Test File Naming
+
+- **ALWAYS** name test files: `{filename}.spec.ts`
+- Place test files next to source files
+- Example: `rpc-core.service.ts` → `rpc-core.service.spec.ts`
+
+### Test Structure
+
+- Use `describe()` blocks to group related tests
+- Use `it()` or `test()` for individual test cases
+- Use descriptive test names: `it('should create purchase order when valid data provided')`
+
+```typescript
+// ✅ CORRECT: Test structure
+describe('RpcCoreService', () => {
+  let service: RpcCoreService;
+  let translationService: TranslationService;
+  let recordGridClient: RecordGridClientService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        RpcCoreService,
+        {
+          provide: TranslationService,
+          useValue: mockTranslationService,
+        },
+        {
+          provide: RecordGridClientService,
+          useValue: mockRecordGridClient,
+        },
+      ],
+    }).compile();
+
+    service = module.get<RpcCoreService>(RpcCoreService);
+  });
+
+  describe('createPurchaseOrder', () => {
+    it('should create purchase order when valid data provided', async () => {
+      // Test implementation
+    });
+
+    it('should return cached response when idempotency key exists', async () => {
+      // Test implementation
+    });
+  });
+});
+```
+
+## Mocking
+
+### Service Mocking
+
+- **ALWAYS** mock dependencies using `useValue` or `useFactory`
+- Create mock objects with required methods
+- Use `jest.fn()` for function mocks
+
+```typescript
+// ✅ CORRECT: Service mocking
+const mockTranslationService = {
+  translatePoToRecord: jest.fn(),
+  translateRecordToPo: jest.fn(),
+};
+
+const mockRecordGridClient = {
+  createRecord: jest.fn(),
+  getRecordById: jest.fn(),
+};
+
+beforeEach(async () => {
+  const module = await Test.createTestingModule({
+    providers: [
+      RpcCoreService,
+      {
+        provide: TranslationService,
+        useValue: mockTranslationService,
+      },
+      {
+        provide: RecordGridClientService,
+        useValue: mockRecordGridClient,
+      },
+    ],
+  }).compile();
+});
+```
+
+### HTTP Client Mocking
+
+- **ALWAYS** mock `HttpService` from `@nestjs/axios`
+- Use `of()` from `rxjs` to create Observable responses
+- Mock both success and error responses
+
+```typescript
+// ✅ CORRECT: HTTP client mocking
+import { of, throwError } from 'rxjs';
+
+const mockHttpService = {
+  post: jest.fn(),
+  get: jest.fn(),
+};
+
+// Mock success response
+mockHttpService.post.mockReturnValue(
+  of({
+    data: { id: 1, recordNumber: 'PO-001' },
+    status: 201,
+    statusText: 'Created',
+  }),
+);
+
+// Mock error response
+mockHttpService.post.mockReturnValue(
+  throwError({
+    response: {
+      status: 400,
+      data: { message: 'Bad Request' },
+    },
+  }),
+);
+```
+
+## Test Coverage
+
+### Coverage Requirements
+
+- **ALWAYS** maintain minimum 80% test coverage
+- Run coverage: `yarn test:cov`
+- Focus on:
+  - Business logic in services
+  - Mapper transformations
+  - Error handling paths
+  - Edge cases and validation
+
+## E2E Testing
+
+### E2E Test Pattern
+
+- **ALWAYS** write E2E tests for complete API workflows
+- Use `Supertest` for HTTP assertions
+- Test authentication, validation, and business logic end-to-end
+
+```typescript
+// ✅ CORRECT: E2E test pattern
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { AppModule } from '../src/app.module';
+
+describe('RPC Core E2E', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  it('/rpc/v1/purchase-orders (POST) should create purchase order', () => {
+    return request(app.getHttpServer())
+      .post('/rpc/v1/purchase-orders')
+      .set('x-api-key', 'test-key')
+      .set('x-api-secret', 'test-secret')
+      .send(validCreatePoDto)
+      .expect(201)
+      .expect((res) => {
+        expect(res.body).toHaveProperty('poInfo');
+        expect(res.body.poInfo.poNumber).toBe(validCreatePoDto.poInfo.poNumber);
+      });
+  });
+});
+```
+
+## Test Data
+
+### Test Fixtures
+
+- **ALWAYS** create test fixtures for common data structures
+- Use factories or builders for complex objects
+- Keep test data in separate files if reused
+
+```typescript
+// ✅ CORRECT: Test fixtures
+export const createValidPoDto = (): CreatePurchaseOrderDto => ({
+  poInfo: {
+    poNumber: 'PO-2025-001',
+    poDate: '2025-01-15',
+    orderStatus: OrderStatus.SUBMITTED,
+  },
+  clientOrderId: 'CLIENT-123',
+  lineItems: [
+    {
+      catalogCode: 'CAT-001',
+      quantity: 10,
+      productNumber: 'PROD-001',
+      productDescription: 'Test Product',
+      productSell: 100.00,
+    },
+  ],
+});
+```
+
+## Assertions
+
+### Assertion Patterns
+
+- **ALWAYS** use descriptive assertions
+- Test both positive and negative cases
+- Verify error messages and status codes
+- Check data transformations
+
+```typescript
+// ✅ CORRECT: Assertions
+expect(result).toBeDefined();
+expect(result.poInfo.poNumber).toBe('PO-2025-001');
+expect(mockTranslationService.translatePoToRecord).toHaveBeenCalledWith(dto, tenantId);
+expect(mockRecordGridClient.createRecord).toHaveBeenCalledTimes(1);
+
+// Error assertions
+await expect(service.createPurchaseOrder(invalidDto, tenantId, null, request))
+  .rejects.toThrow(BadRequestException);
+```
+
+## Testing Checklist
+
+Before submitting code, ensure:
+
+- [ ] All services have unit tests
+- [ ] All mappers have transformation tests
+- [ ] All controllers have E2E tests
+- [ ] Error cases are tested
+- [ ] Edge cases are covered
+- [ ] Test coverage is at least 80%
+- [ ] Mocks are properly configured
+- [ ] Test data is realistic
+- [ ] Assertions are descriptive
+- [ ] Tests are independent and can run in any order

@@ -1,0 +1,131 @@
+---
+description: Code structure, naming conventions, and DDD organization patterns
+globs: 
+alwaysApply: true
+---
+
+# Code Structure and Naming Conventions
+
+## Domain-Driven Design (DDD) Organization
+
+- **ALWAYS** use DDD-based organization grouping code by business domains
+- Separate code by domain/feature into self-contained modules
+- Each module should represent a bounded context
+- Use barrel exports (`index.ts`) to simplify imports
+
+## Folder Naming Conventions
+
+- **ALWAYS** use lowercase with hyphens or camelCase (consistent across the entire project)
+- Choose one style and maintain it throughout the project
+- Examples:
+  - `user-management/` or `userManagement/`
+  - `order-processing/` or `orderProcessing/`
+- **NEVER** mix naming styles within the same project
+
+## File Naming Conventions
+
+- **ALWAYS** use descriptive file names, <50 characters
+- **ALWAYS** use English only for file names
+- **ALWAYS** include type suffixes:
+  - `.service.ts` for services
+  - `.controller.ts` for controllers
+  - `.model.ts` or `.entity.ts` for models/entities
+  - `.dto.ts` for DTOs
+  - `.spec.ts` for tests
+  - `.module.ts` for modules
+- Use kebab-case for file names matching class names
+- Examples:
+  - `user-management.service.ts`
+  - `order-processing.controller.ts`
+  - `create-order.dto.ts`
+
+## Variable Naming Conventions
+
+- **ALWAYS** use English for variable names
+- **ALWAYS** use camelCase for variables
+- **ALWAYS** keep variable names <100 characters
+- **ALWAYS** use descriptive names that explain purpose
+
+### Boolean Variables
+
+- **ALWAYS** start boolean variables with `is`, `has`, or `should`
+- Examples:
+
+  ```typescript
+  const isActive = true;
+  const hasPermission = false;
+  const shouldValidate = true;
+  ```
+
+### Array Variables
+
+- **ALWAYS** use plural nouns for arrays
+- Examples:
+
+  ```typescript
+  const users: User[] = [];
+  const orders: Order[] = [];
+  const permissions: Permission[] = [];
+  ```
+
+### Constants
+
+- **ALWAYS** use UPPER_SNAKE_CASE for constants
+- Examples:
+
+  ```typescript
+  const MAX_RETRY_ATTEMPTS = 3;
+  const API_BASE_URL = 'https://api.example.com';
+  const DEFAULT_TIMEOUT_MS = 5000;
+  ```
+
+## Class and Method Naming
+
+- **Classes**: PascalCase (e.g., `UserService`, `OrderController`)
+- **Methods**: camelCase (e.g., `getUserById`, `createOrder`)
+- **Interfaces**: PascalCase, often prefixed with `I` or descriptive name (e.g., `IUserRepository` or `UserRepository`)
+
+## Module Organization
+
+- Group related functionality into self-contained modules
+- Each module should have clear boundaries
+- Modules should communicate through well-defined interfaces
+- Avoid circular dependencies between modules
+
+## Barrel Exports (index.ts)
+
+- **ALWAYS** use barrel exports to simplify imports
+- Create `index.ts` files that re-export public APIs
+- Keep barrel exports focused and organized
+
+```typescript
+// ✅ CORRECT: Barrel export pattern
+// src/context/user/index.ts
+export { UserController } from './user.controller';
+export { UserModule } from './user.module';
+export { UserService } from '../shared/context/user/user.service';
+```
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** use abbreviations unless they're widely understood (e.g., `id`, `url`, `api`)
+2. ❌ **Don't** mix naming conventions within the same project
+3. ❌ **Don't** use single-letter variable names (except for loop counters: `i`, `j`, `k`)
+4. ❌ **Don't** use Hungarian notation (e.g., `strName`, `intCount`)
+5. ❌ **Don't** create files without type suffixes
+6. ❌ **Don't** use non-English characters in file or variable names
+7. ❌ **Don't** create circular dependencies between modules
+8. ❌ **Don't** skip barrel exports for public APIs
+
+## Code Review Checklist
+
+Before submitting code, ensure:
+
+- [ ] All file names follow the naming convention
+- [ ] All variables use camelCase and are descriptive
+- [ ] Boolean variables start with `is`, `has`, or `should`
+- [ ] Arrays use plural nouns
+- [ ] Constants use UPPER_SNAKE_CASE
+- [ ] Code is organized by domain/feature
+- [ ] Barrel exports are used for public APIs
+- [ ] No circular dependencies exist

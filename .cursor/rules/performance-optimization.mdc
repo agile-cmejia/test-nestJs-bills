@@ -1,0 +1,260 @@
+---
+description: Performance optimization strategies, caching, and scalability best practices
+globs: 
+alwaysApply: true
+---
+
+# Performance Optimization Standards
+
+## Database Optimization
+
+### Query Optimization
+
+- **ALWAYS** optimize database queries with appropriate indexes
+- **ALWAYS** use indexes on frequently queried columns
+- Monitor slow queries and optimize them
+- Use query builders for complex queries
+- Avoid N+1 query problems
+
+```typescript
+// ❌ WRONG: N+1 query problem
+const users = await this.userRepository.find();
+for (const user of users) {
+  const orders = await this.orderRepository.find({ where: { userId: user.id } });
+}
+
+// ✅ CORRECT: Eager loading
+const users = await this.userRepository.find({
+  relations: ['orders'],
+});
+
+// ✅ CORRECT: Batch query
+const userIds = users.map(u => u.id);
+const orders = await this.orderRepository.find({
+  where: { userId: In(userIds) },
+});
+```
+
+### Index Strategy
+
+- Index foreign keys for join performance
+- Index columns used in WHERE clauses
+- Index columns used in ORDER BY clauses
+- Composite indexes for multi-column queries
+- Monitor index usage and remove unused indexes
+
+## Caching
+
+### Cache Implementation
+
+- **ALWAYS** implement caching for frequently accessed data
+- Use Redis for distributed caching
+- Cache at appropriate levels:
+  - Application-level caching
+  - Database query caching
+  - CDN caching for static assets
+- Set appropriate cache expiration times
+- Invalidate cache on data updates
+
+```typescript
+// ✅ CORRECT: Redis caching pattern
+async getUserById(userId: string): Promise<User> {
+  const cacheKey = `user:${userId}`;
+  
+  // Try cache first
+  const cached = await this.redis.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+  
+  // Fetch from database
+  const user = await this.userRepository.findOne({ where: { id: userId } });
+  
+  // Cache for 1 hour
+  await this.redis.setex(cacheKey, 3600, JSON.stringify(user));
+  
+  return user;
+}
+```
+
+### Cache Invalidation
+
+- Invalidate cache when data is updated
+- Use cache tags for related data
+- Implement cache warming for critical data
+- Monitor cache hit rates
+
+```typescript
+// ✅ CORRECT: Cache invalidation
+async updateUser(userId: string, dto: UpdateUserDto): Promise<User> {
+  const user = await this.userRepository.save({ id: userId, ...dto });
+  
+  // Invalidate cache
+  await this.redis.del(`user:${userId}`);
+  await this.redis.del(`user:email:${user.email}`);
+  
+  return user;
+}
+```
+
+## Pagination
+
+### Large Data Lists
+
+- **ALWAYS** use pagination for large data lists
+- Implement cursor-based or offset-based pagination
+- Set reasonable page size limits
+- Return pagination metadata
+
+```typescript
+// ✅ CORRECT: Pagination implementation
+async findAll(dto: FindUsersDto): Promise<PaginatedResponse<User>> {
+  const { page = 1, limit = 20 } = dto;
+  const skip = (page - 1) * limit;
+  
+  const [data, total] = await this.userRepository.findAndCount({
+    skip,
+    take: limit,
+    order: { createdAt: 'DESC' },
+  });
+  
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+```
+
+## Lazy Loading
+
+### Heavy Resources
+
+- **ALWAYS** implement lazy loading for heavy resources
+- Load data on demand, not upfront
+- Use pagination for large datasets
+- Implement virtual scrolling for UI lists
+- Load images and media lazily
+
+## API Response Times
+
+### Optimization
+
+- **ALWAYS** monitor and optimize API response times
+- Target response times:
+  - Simple queries: < 100ms
+  - Complex queries: < 500ms
+  - External API calls: < 2s
+- Use async processing for long-running operations
+- Implement request timeouts
+
+### Response Compression
+
+- **ALWAYS** compress HTTP responses (gzip, brotli)
+- Enable compression in web server (nginx, Apache)
+- Compress JSON responses
+- Use CDN for static assets
+
+```typescript
+// ✅ CORRECT: Response compression middleware
+import compression from 'compression';
+
+app.use(compression({
+  level: 6,
+  threshold: 1024, // Only compress responses > 1KB
+}));
+```
+
+## CDN for Static Assets
+
+- **ALWAYS** use CDN for static assets
+- Serve images, CSS, JS from CDN
+- Cache static assets with long expiration
+- Use CDN for API responses when appropriate
+- Implement cache invalidation for CDN
+
+## Circuit Breakers
+
+### External Services
+
+- **ALWAYS** implement circuit breakers for external services
+- Prevent cascading failures
+- Fail fast when service is down
+- Implement retry logic with exponential backoff
+- Monitor circuit breaker state
+
+```typescript
+// ✅ CORRECT: Circuit breaker pattern
+import { CircuitBreaker } from 'opossum';
+
+const options = {
+  timeout: 3000,
+  errorThresholdPercentage: 50,
+  resetTimeout: 30000,
+};
+
+const breaker = new CircuitBreaker(externalApiCall, options);
+
+breaker.on('open', () => {
+  this.logger.warn('Circuit breaker opened - service unavailable');
+});
+
+async callExternalService(data: any): Promise<any> {
+  try {
+    return await breaker.fire(data);
+  } catch (error) {
+    this.logger.error('External service call failed', { error: error.message });
+    throw error;
+  }
+}
+```
+
+## Performance Monitoring
+
+### Metrics to Monitor
+
+- Response times (p50, p95, p99)
+- Throughput (requests per second)
+- Error rates
+- Database query performance
+- Cache hit rates
+- Resource usage (CPU, memory)
+
+### Optimization Process
+
+1. **Measure**: Identify performance bottlenecks
+2. **Analyze**: Understand root causes
+3. **Optimize**: Implement improvements
+4. **Verify**: Measure improvements
+5. **Monitor**: Track ongoing performance
+
+## Performance Checklist
+
+Before deploying, ensure:
+- [ ] Database queries are optimized with indexes
+- [ ] Caching is implemented for frequently accessed data
+- [ ] Pagination is used for large data lists
+- [ ] API response times meet targets
+- [ ] Static assets are served from CDN
+- [ ] HTTP responses are compressed
+- [ ] Circuit breakers are implemented for external services
+- [ ] Performance metrics are monitored
+- [ ] Slow queries are identified and optimized
+- [ ] N+1 query problems are avoided
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** skip database indexes
+2. ❌ **Don't** ignore slow queries
+3. ❌ **Don't** skip caching for frequently accessed data
+4. ❌ **Don't** load all data without pagination
+5. ❌ **Don't** ignore API response times
+6. ❌ **Don't** skip compression
+7. ❌ **Don't** ignore circuit breakers for external services
+8. ❌ **Don't** create N+1 query problems
+9. ❌ **Don't** skip performance monitoring
+10. ❌ **Don't** optimize prematurely without measuring

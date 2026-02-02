@@ -1,0 +1,254 @@
+---
+description: API design, versioning, documentation, and error handling standards
+globs: 
+alwaysApply: true
+---
+
+# API Standards
+
+## API Documentation
+
+### OpenAPI/Swagger
+
+- **ALWAYS** document all APIs with OpenAPI/Swagger
+- **ALWAYS** include request/response examples for each endpoint
+- **ALWAYS** define all data models with types, constraints, and validations
+- **ALWAYS** keep API documentation updated (Swagger)
+- Use Swagger decorators in controllers
+
+```typescript
+// ✅ CORRECT: Comprehensive API documentation
+@ApiTags('Users')
+@Controller('users')
+export class UsersController {
+  @Post()
+  @ApiOperation({ 
+    summary: 'Create a new user',
+    description: 'Creates a new user account with the provided information'
+  })
+  @ApiBody({ type: CreateUserDto })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'User successfully created',
+    type: UserDto 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Invalid input data' 
+  })
+  @ApiResponse({ 
+    status: 409, 
+    description: 'User already exists' 
+  })
+  async create(@Body() dto: CreateUserDto): Promise<UserDto> {
+    return await this.service.create(dto);
+  }
+}
+```
+
+## API Versioning
+
+- **ALWAYS** implement API versioning (preferably in URL: `/api/v1/`)
+- **ALWAYS** maintain backward compatibility or announce deprecations 6 months in advance
+- Use semantic versioning for API versions
+- Document version changes and migration paths
+
+```typescript
+// ✅ CORRECT: API versioning in URL
+@Controller('api/v1/users')
+export class UsersV1Controller {
+  // V1 implementation
+}
+
+@Controller('api/v2/users')
+export class UsersV2Controller {
+  // V2 implementation with backward compatibility
+}
+```
+
+## Error Handling
+
+### Standardized Error Format
+
+- **ALWAYS** use standardized error format with clear codes and messages
+- **ALWAYS** return appropriate HTTP status codes:
+  - `200` - Success
+  - `201` - Created
+  - `400` - Bad Request (validation errors)
+  - `401` - Unauthorized (authentication required)
+  - `403` - Forbidden (insufficient permissions)
+  - `404` - Not Found
+  - `409` - Conflict (duplicate resource)
+  - `500` - Internal Server Error
+- Include error codes, messages, and optional details
+- Never expose sensitive information in error responses
+
+```typescript
+// ✅ CORRECT: Standardized error response
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input data",
+    "details": [
+      {
+        "field": "email",
+        "message": "Email must be a valid email address"
+      }
+    ],
+    "timestamp": "2025-01-15T10:30:00Z"
+  }
+}
+```
+
+### Error Handling Implementation
+
+```typescript
+// ✅ CORRECT: Controller error handling
+@Post()
+async create(@Body() dto: CreateUserDto): Promise<UserDto> {
+  try {
+    return await this.service.create(dto);
+  } catch (error) {
+    if (error instanceof BadRequestException) {
+      throw error; // Already formatted
+    }
+    this.logger.error(`Failed to create user: ${error.message}`, {
+      stack: error.stack,
+    });
+    throw new InternalServerErrorException('An error occurred processing your request');
+  }
+}
+```
+
+## Input Validation
+
+- **ALWAYS** validate input on all endpoints
+- **ALWAYS** validate on both client and server side
+- Use DTOs with class-validator decorators
+- Return clear validation error messages
+
+```typescript
+// ✅ CORRECT: DTO with validation
+import { IsNotEmpty, IsEmail, MinLength, MaxLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+
+export class CreateUserDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsNotEmpty({ message: 'Email is required' })
+  @IsEmail({}, { message: 'Email must be a valid email address' })
+  email: string;
+
+  @ApiProperty({ example: 'SecurePassword123!' })
+  @IsNotEmpty({ message: 'Password is required' })
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @MaxLength(100, { message: 'Password must not exceed 100 characters' })
+  password: string;
+}
+```
+
+## API Gateway
+
+- **ALWAYS** implement rate limiting and authentication in API Gateway
+- Use API Gateway for:
+  - Request routing
+  - Authentication and authorization
+  - Rate limiting
+  - Request/response transformation
+  - Monitoring and logging
+
+## Request/Response Patterns
+
+### Request Examples
+
+- Include example requests in Swagger documentation
+- Provide examples for different scenarios
+- Show required vs optional fields
+
+### Response Examples
+
+- Include example responses for success and error cases
+- Show different response formats
+- Document pagination patterns
+
+```typescript
+// ✅ CORRECT: Response with pagination
+@Get()
+@ApiOperation({ summary: 'List users' })
+@ApiResponse({
+  status: 200,
+  description: 'List of users',
+  type: [UserDto],
+})
+async findAll(
+  @Query() query: FindUsersDto,
+): Promise<PaginatedResponse<UserDto>> {
+  return await this.service.findAll(query);
+}
+
+// Paginated response structure
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+```
+
+## API Design Principles
+
+- Use RESTful conventions for resource naming
+- Use appropriate HTTP methods (GET, POST, PUT, PATCH, DELETE)
+- Use plural nouns for resource names
+- Use nested resources for relationships when appropriate
+- Keep endpoints focused and single-purpose
+
+```typescript
+// ✅ CORRECT: RESTful API design
+@Controller('users')
+export class UsersController {
+  @Get()           // GET /users
+  findAll() {}
+
+  @Get(':id')      // GET /users/:id
+  findOne() {}
+
+  @Post()          // POST /users
+  create() {}
+
+  @Patch(':id')    // PATCH /users/:id
+  update() {}
+
+  @Delete(':id')   // DELETE /users/:id
+  remove() {}
+}
+```
+
+## API Checklist
+
+Before deploying API changes, ensure:
+
+- [ ] All APIs are documented with OpenAPI/Swagger
+- [ ] Request/response examples are included
+- [ ] Error formats are standardized
+- [ ] Appropriate HTTP status codes are used
+- [ ] Input validation is implemented
+- [ ] API versioning is in place
+- [ ] Rate limiting is configured
+- [ ] Authentication/authorization is implemented
+- [ ] Backward compatibility is maintained or deprecation is announced
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** skip API documentation
+2. ❌ **Don't** use inconsistent error formats
+3. ❌ **Don't** return wrong HTTP status codes
+4. ❌ **Don't** skip input validation
+5. ❌ **Don't** break backward compatibility without notice
+6. ❌ **Don't** expose sensitive information in error messages
+7. ❌ **Don't** use inconsistent naming conventions
+8. ❌ **Don't** skip rate limiting
+9. ❌ **Don't** ignore API versioning
+10. ❌ **Don't** forget to update documentation when APIs change

@@ -1,0 +1,209 @@
+---
+description: Security best practices, authentication, authorization, and data protection standards
+globs: 
+alwaysApply: true
+---
+
+# Security Standards
+
+## Critical Security Rules
+
+### Credentials and Secrets
+
+- **NEVER** hardcode credentials, API keys, or tokens in code
+- **NEVER** commit `.env` files to version control
+- **NEVER** store passwords in plain text
+- **NEVER** share credentials between environments
+- **ALWAYS** use environment variables for sensitive configuration
+- **ALWAYS** validate environment variables at application startup
+- **ALWAYS** rotate secrets and credentials regularly
+
+### Input Validation
+
+- **ALWAYS** validate ALL user input on both client and server
+- **ALWAYS** use parameterized queries or ORMs to prevent SQL injection
+- **ALWAYS** escape user-generated content before rendering in HTML
+- **ALWAYS** validate input on all endpoints
+- Use class-validator decorators for DTOs
+- Implement server-side validation even if client-side validation exists
+
+```typescript
+// ✅ CORRECT: Input validation with class-validator
+import { IsNotEmpty, IsEmail, MinLength } from 'class-validator';
+
+export class CreateUserDto {
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
+  @IsNotEmpty()
+  @MinLength(8)
+  password: string;
+}
+```
+
+### SQL Injection Prevention
+
+- **NEVER** use string concatenation for SQL queries
+- **ALWAYS** use parameterized queries or ORMs
+- **ALWAYS** use TypeORM query builders or repository methods
+
+```typescript
+// ❌ WRONG: String concatenation (SQL injection risk)
+const query = `SELECT * FROM users WHERE id = ${userId}`;
+
+// ✅ CORRECT: Parameterized query
+const user = await this.repository.findOne({ where: { id: userId } });
+
+// ✅ CORRECT: Query builder
+const user = await this.repository
+  .createQueryBuilder('user')
+  .where('user.id = :id', { id: userId })
+  .getOne();
+```
+
+### Authentication
+
+- **ALWAYS** use JWT or OAuth2 for authentication
+- **ALWAYS** use bcrypt or Argon2 for password hashing
+- **ALWAYS** implement MFA (Multi-Factor Authentication) for administrative accounts
+- **ALWAYS** implement secure session management
+- Store password hashes, never plain text passwords
+
+```typescript
+// ✅ CORRECT: Password hashing with bcrypt
+import * as bcrypt from 'bcrypt';
+
+const saltRounds = 10;
+const hashedPassword = await bcrypt.hash(password, saltRounds);
+const isValid = await bcrypt.compare(password, hashedPassword);
+```
+
+### Authorization
+
+- **ALWAYS** implement RBAC (Role-Based Access Control) for authorization
+- **ALWAYS** verify user permissions before allowing operations
+- **ALWAYS** implement principle of least privilege
+- Check permissions at both controller and service levels
+
+### CSRF Protection
+
+- **ALWAYS** implement CSRF tokens for state-changing operations
+- Use CSRF middleware for POST, PUT, PATCH, DELETE requests
+- Validate CSRF tokens on the server side
+
+### Data Protection
+
+- **ALWAYS** encrypt sensitive data at rest and in transit
+- **ALWAYS** encrypt sensitive data before storing in database
+- **ALWAYS** use HTTPS/TLS for all network communications
+- **ALWAYS** mask/redact sensitive fields in logs
+- **NEVER** store sensitive data in logs (passwords, tokens, PII)
+
+### Logging Security
+
+- **NEVER** log sensitive information:
+  - Passwords
+  - API keys or tokens
+  - PII (Personally Identifiable Information)
+  - Credit card numbers
+  - Social security numbers
+- **ALWAYS** mask or redact sensitive fields before logging
+- Use structured logging with appropriate log levels
+
+```typescript
+// ❌ WRONG: Logging sensitive data
+this.logger.log(`User login: ${email}, password: ${password}`);
+
+// ✅ CORRECT: Masked logging
+this.logger.log(`User login attempt: ${email}`);
+this.logger.debug(`Request headers: ${JSON.stringify(sanitizedHeaders)}`);
+```
+
+### Error Messages
+
+- **NEVER** expose sensitive information in error messages
+- **ALWAYS** provide generic error messages to users
+- **ALWAYS** log detailed error information server-side
+- Don't reveal system internals, stack traces, or database structure
+
+```typescript
+// ❌ WRONG: Exposing sensitive information
+throw new Error(`Database connection failed: ${connectionString}`);
+
+// ✅ CORRECT: Generic error message
+throw new InternalServerErrorException('An error occurred processing your request');
+// Log detailed error server-side
+this.logger.error(`Database connection failed`, { 
+  error: error.message,
+  stack: error.stack 
+});
+```
+
+### Dependencies
+
+- **NEVER** use dependencies with known vulnerabilities
+- **ALWAYS** keep dependencies up-to-date
+- **ALWAYS** run security scans (npm audit, yarn audit, etc.)
+- **ALWAYS** review and update dependencies regularly
+- Use tools like Snyk or Dependabot for vulnerability monitoring
+
+## Security Best Practices
+
+### Environment Variables
+
+- Use separate environment variables per environment (`.env.development`, `.env.production`)
+- Validate all required environment variables at startup
+- Use strong, unique secrets for each environment
+- Never commit `.env` files to version control
+
+### API Security
+
+- Implement rate limiting and authentication in API Gateway
+- Use API keys or OAuth2 for API authentication
+- Implement request validation and sanitization
+- Monitor for suspicious API activity
+
+### Data Encryption
+
+- Encrypt sensitive data at rest (database encryption)
+- Encrypt sensitive data in transit (TLS/SSL)
+- Use strong encryption algorithms (AES-256)
+- Manage encryption keys securely
+
+## Security Checklist
+
+Before deploying code, ensure:
+
+- [ ] No hardcoded credentials or secrets
+- [ ] All user input is validated
+- [ ] SQL injection prevention is in place
+- [ ] Passwords are hashed (never plain text)
+- [ ] Authentication and authorization are implemented
+- [ ] CSRF protection is enabled
+- [ ] Sensitive data is encrypted
+- [ ] No sensitive information in logs
+- [ ] Error messages don't expose sensitive data
+- [ ] Dependencies are up-to-date and secure
+- [ ] Environment variables are properly configured
+- [ ] Security scans pass without critical vulnerabilities
+
+## Compliance Considerations
+
+- **GDPR**: Implement right to erasure and data portability
+- **PCI DSS**: Never store CVV or PIN, encrypt card data, use tokenization
+- **HIPAA**: Encrypt PHI, implement audit logging, sign BAAs with vendors
+- Notify security breaches within 72 hours (GDPR requirement)
+
+## Anti-Patterns to Avoid
+
+1. ❌ **Don't** hardcode credentials or secrets
+2. ❌ **Don't** commit `.env` files
+3. ❌ **Don't** store passwords in plain text
+4. ❌ **Don't** use string concatenation for SQL
+5. ❌ **Don't** log sensitive information
+6. ❌ **Don't** expose sensitive data in error messages
+7. ❌ **Don't** skip input validation
+8. ❌ **Don't** use dependencies with known vulnerabilities
+9. ❌ **Don't** share credentials between environments
+10. ❌ **Don't** ignore security warnings or alerts

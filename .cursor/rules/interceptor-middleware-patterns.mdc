@@ -1,0 +1,366 @@
+---
+description: Patterns for interceptors, middleware, and cross-cutting concerns
+globs: "src/shared/interceptors/**/*.ts,src/shared/middleware/**/*.ts"
+alwaysApply: true
+---
+
+# Interceptor and Middleware Patterns
+
+## Global Interceptors
+
+### Interceptor Registration
+
+- **ALWAYS** register global interceptors in `AppModule` using `APP_INTERCEPTOR` provider
+- Order matters: interceptors execute in registration order
+- Current global interceptors:
+  1. `RateLimitInterceptor` - Rate limiting
+  2. `AuditLoggingInterceptor` - Request/response logging
+  3. `TelemetryInterceptor` - Telemetry emission
+
+```typescript
+// ✅ CORRECT: Global interceptor registration
+@Module({
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RateLimitInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditLoggingInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TelemetryInterceptor,
+    },
+  ],
+})
+export class AppModule {}
+```
+
+## Audit Logging Interceptor
+
+### Request/Response Logging
+
+- **ALWAYS** log all HTTP requests and responses in structured JSON format
+- Include: method, url, statusCode, durationMs, correlationId, tenantId, userId
+- **ALWAYS** sanitize sensitive data before logging
+- Log at request received, response sent, and error events
+
+```typescript
+// ✅ CORRECT: Audit logging interceptor
+@Injectable()
+export class AuditLoggingInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const now = Date.now();
+    const request = context.switchToHttp().getRequest();
+    const response = context.switchToHttp().getResponse();
+
+    // Log request
+    this.logger.log(JSON.stringify({
+      event: 'http_request_received',
+      method: request.method,
+      url: request.originalUrl,
+      tenantId: request.tenant?.id,
+      correlationId: request['X-Correlation-Id'],
+      body: this.sanitizePayload(request.body),
+    }));
+
+    return next.handle().pipe(
+      tap((data) => {
+        const durationMs = Date.now() - now;
+        this.logger.log(JSON.stringify({
+          event: 'http_response_sent',
+          method: request.method,
+          url: request.originalUrl,
+          statusCode: response.statusCode,
+          durationMs,
+          correlationId: request['X-Correlation-Id'],
+        }));
+      }),
+      catchError((err) => {
+        const durationMs = Date.now() - now;
+        this.logger.log(JSON.stringify({
+          event: 'http_handler_error',
+          method: request.method,
+          url: request.originalUrl,
+          durationMs,
+          correlationId: request['X-Correlation-Id'],
+          message: err?.message,
+        }));
+        throw err;
+      }),
+    );
+  }
+}
+```
+
+### Payload Sanitization
+
+- **ALWAYS** sanitize sensitive fields before logging
+- Remove or mask: password, token, secret, authorization, apiKey, apiSecret
+- Use recursive sanitization for nested objects
+
+```typescript
+// ✅ CORRECT: Payload sanitization
+private sanitizePayload(payload: any): any {
+  if (!payload || typeof payload !== 'object') return payload;
+  
+  const sensitiveKeys = new Set(['password', 'token', 'secret', 'authorization', 'apiKey', 'apiSecret']);
+  
+  const walk = (obj: any): any => {
+    if (Array.isArray(obj)) return obj.map(walk);
+    if (obj && typeof obj === 'object') {
+      const out: any = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (sensitiveKeys.has(k)) {
+          out[k] = '***';
+          continue;
+        }
+        if (v && typeof v === 'object') out[k] = walk(v);
+        else out[k] = v;
+      }
+      return out;
+    }
+    return obj;
+  };
+  
+  return walk(payload);
+}
+```
+
+## Telemetry Interceptor
+
+### Telemetry Emission
+
+- **ALWAYS** emit telemetry events for all HTTP requests/responses
+- Use `TelemetryService.emitEvent()` for emission
+- **NEVER** throw errors from telemetry - failures shouldn't break requests
+- Emit events: `http_request`, `http_response`, `http_error`
+
+```typescript
+// ✅ CORRECT: Telemetry interceptor
+@Injectable()
+export class TelemetryInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const startTime = Date.now();
+    const request = context.switchToHttp().getRequest();
+
+    // Emit request event (don't await - fire and forget)
+    this.telemetryService.emitEvent('http_request', {
+      method: request.method,
+      url: request.originalUrl,
+    }, {
+      tenantId: request.tenant?.id,
+      correlationId: request['X-Correlation-Id'],
+    }).catch((error) => {
+      this.logger.warn(`Failed to emit request telemetry: ${error.message}`);
+    });
+
+    return next.handle().pipe(
+      tap((data) => {
+        const durationMs = Date.now() - startTime;
+        // Emit response event
+        this.telemetryService.emitEvent('http_response', {
+          method: request.method,
+          url: request.originalUrl,
+          statusCode: response.statusCode,
+          durationMs,
+          success: response.statusCode >= 200 && response.statusCode < 300,
+        }, {
+          tenantId: request.tenant?.id,
+          correlationId: request['X-Correlation-Id'],
+        }).catch((error) => {
+          this.logger.warn(`Failed to emit response telemetry: ${error.message}`);
+        });
+      }),
+    );
+  }
+}
+```
+
+## Rate Limit Interceptor
+
+### Rate Limiting Pattern
+
+- **ALWAYS** use `RateLimitInterceptor` for rate limiting
+- Configure via environment variables:
+  - `RATE_LIMIT_WINDOW_MS` - Time window (default: 15 minutes)
+  - `RATE_LIMIT_MAX_REQUESTS` - Max requests per window (default: 100)
+- **ALWAYS** check for bypass keys for specific tenants
+- Skip rate limiting for public routes
+
+```typescript
+// ✅ CORRECT: Rate limit interceptor
+@Injectable()
+export class RateLimitInterceptor implements NestInterceptor {
+  private readonly limiter: any;
+
+  constructor(private readonly rateLimitBypassService: RateLimitBypassService) {
+    const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000');
+    const max = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100');
+
+    this.limiter = rateLimit({
+      windowMs,
+      max,
+      keyGenerator: (req: any) => {
+        const apiKey = req.headers['x-api-key'] as string;
+        const ip = req.ip || 'unknown';
+        return apiKey ? `${apiKey}:${ip}` : ip;
+      },
+      skip: async (req: any) => {
+        return await this.shouldSkipRateLimit(req);
+      },
+    });
+  }
+
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const request = context.switchToHttp().getRequest();
+    const response = context.switchToHttp().getResponse();
+
+    return new Observable((subscriber) => {
+      this.limiter(request, response, (err: any) => {
+        if (err) {
+          subscriber.error({
+            status: 429,
+            message: 'Too many requests',
+          });
+        } else {
+          next.handle().subscribe({
+            next: (value) => subscriber.next(value),
+            error: (error) => subscriber.error(error),
+            complete: () => subscriber.complete(),
+          });
+        }
+      });
+    });
+  }
+}
+```
+
+## Middleware
+
+### Middleware Registration
+
+- **ALWAYS** register middleware in `AppModule.configure()` method
+- Middleware executes in registration order
+- Current middleware stack:
+  1. `InputSanitizationMiddleware` - XSS prevention
+  2. `CorrelationIdMiddleware` - Correlation ID generation
+  3. `CorpMiddleware` - CORS configuration
+  4. `SecurityHeadersMiddleware` - Security headers
+
+```typescript
+// ✅ CORRECT: Middleware registration
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(InputSanitizationMiddleware).forRoutes('*');
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+    consumer.apply(CorpMiddleware).forRoutes('*');
+    consumer.apply(SecurityHeadersMiddleware).forRoutes('*');
+  }
+}
+```
+
+## Correlation ID Middleware
+
+### Correlation ID Pattern
+
+- **ALWAYS** generate correlation ID for request tracing
+- Use existing `x-correlation-id` header if provided, otherwise generate UUID
+- Set correlation ID on both request and response
+- Use constant: `CORRELATION_ID_HEADER = 'X-Correlation-Id'`
+
+```typescript
+// ✅ CORRECT: Correlation ID middleware
+@Injectable()
+export class CorrelationIdMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction) {
+    const incoming = req.headers['x-correlation-id'] as string | string[] | undefined;
+    const providedId = Array.isArray(incoming) ? incoming[0] : incoming;
+    const id = (providedId && providedId.trim()) || randomUUID();
+    
+    req[CORRELATION_ID_HEADER] = id;
+    res.set(CORRELATION_ID_HEADER, id);
+    next();
+  }
+}
+```
+
+## Input Sanitization Middleware
+
+### XSS Prevention
+
+- **ALWAYS** sanitize all input to prevent XSS attacks
+- Use `xss` library for HTML sanitization
+- Sanitize request body, query parameters, and path parameters
+- **ALWAYS** apply to all routes (`forRoutes('*')`)
+
+```typescript
+// ✅ CORRECT: Input sanitization middleware
+@Injectable()
+export class InputSanitizationMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction) {
+    if (req.body) {
+      req.body = this.sanitizeObject(req.body);
+    }
+    if (req.query) {
+      req.query = this.sanitizeObject(req.query);
+    }
+    next();
+  }
+
+  private sanitizeObject(obj: any): any {
+    // Recursive sanitization logic
+  }
+}
+```
+
+## Security Headers Middleware
+
+### Security Headers Pattern
+
+- **ALWAYS** set security headers via middleware
+- Headers include: CSP, CORP, Permissions Policy, etc.
+- Configure in `SecurityHeadersMiddleware`
+- Applied globally to all routes
+
+## Exception Filters
+
+### Global Exception Filters
+
+- **ALWAYS** register global exception filters in `AppModule`
+- Current filters:
+  1. `CorrelationIdExceptionFilter` - Adds correlation ID to error responses
+  2. `AuditExceptionFilter` - Logs exceptions for audit
+
+```typescript
+// ✅ CORRECT: Exception filter registration
+@Module({
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: CorrelationIdExceptionFilter,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: AuditExceptionFilter,
+    },
+  ],
+})
+export class AppModule {}
+```
+
+## Interceptor and Middleware Checklist
+
+Before implementing interceptors or middleware, ensure:
+
+- [ ] Interceptors are registered as `APP_INTERCEPTOR` providers
+- [ ] Middleware is registered in `AppModule.configure()`
+- [ ] Correlation IDs are generated and propagated
+- [ ] Sensitive data is sanitized before logging
+- [ ] Telemetry failures don't break requests
+- [ ] Rate limiting respects bypass keys
+- [ ] Public routes skip rate limiting
+- [ ] Exception filters add correlation IDs to errors
+- [ ] All cross-cutting concerns are logged for audit

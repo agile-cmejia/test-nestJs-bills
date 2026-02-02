@@ -1,0 +1,145 @@
+---
+description: TypeORM patterns, repository usage, and database access patterns for RPC Core
+globs: "src/**/*.ts"
+alwaysApply: true
+---
+
+# TypeORM Patterns
+
+## Repository Injection
+
+### Default Connection Pattern
+
+- **ALWAYS** use default connection (no connection name specified)
+- **ALWAYS** use `@InjectRepository(Entity)` pattern (not `@InjectRepository(Entity, dbConfig.name)`)
+- Project uses single default database connection
+
+```typescript
+// ✅ CORRECT: Repository injection (default connection)
+@Injectable()
+export class IdempotencyService {
+  constructor(
+    @InjectRepository(IdempotencyKey)
+    private readonly repository: Repository<IdempotencyKey>,
+    @InjectRepository(Tenant)
+    private readonly tenantRepository: Repository<Tenant>,
+  ) {}
+}
+```
+
+## Entity Usage
+
+### Shared Entities
+
+- **ALWAYS** use entities from `@avantodev/avanto-db` package
+- Common entities: `IdempotencyKey`, `Tenant`
+- **NEVER** create local entity definitions - use shared package
+
+```typescript
+// ✅ CORRECT: Shared entity import
+import { IdempotencyKey, Tenant } from '@avantodev/avanto-db';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([IdempotencyKey, Tenant]),
+  ],
+})
+export class FeatureModule {}
+```
+
+## Query Patterns
+
+### Find Operations
+
+- **ALWAYS** use repository `findOne()` with `where` clause
+- **ALWAYS** specify `select` when only specific fields needed
+- Handle null results appropriately
+
+```typescript
+// ✅ CORRECT: Find operation
+const tenant = await this.tenantRepository.findOne({
+  where: { id: tenantId },
+  select: ['id'], // Only select needed fields
+});
+
+if (!tenant) {
+  throw new NotFoundException(`Tenant ${tenantId} not found`);
+}
+```
+
+### Raw SQL Queries
+
+- Use raw SQL when TypeORM entity mapping doesn't match database schema
+- **ALWAYS** use parameterized queries to prevent SQL injection
+- Use `repository.query()` for complex operations
+
+```typescript
+// ✅ CORRECT: Raw SQL query
+await this.repository.query(
+  `INSERT INTO idempotency_keys (idempotency_key, response_status, response_body, expires_at, tenant_id, created_at)
+   VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+   ON CONFLICT (idempotency_key, tenant_id) DO NOTHING`,
+  [key, responseStatus, JSON.stringify(responseBody), expiresAt, tenantId],
+);
+```
+
+### Date Handling
+
+- **ALWAYS** use `CURRENT_TIMESTAMP` in raw SQL for database-generated timestamps
+- Database uses `created_at` (snake_case) but entities may use `createdAt` (camelCase)
+- Be aware of column name differences when using raw SQL
+
+## Transaction Patterns
+
+### Transaction Usage
+
+- Use `EntityManager.transaction()` for multi-step operations
+- **ALWAYS** handle transaction errors appropriately
+- Rollback automatically on error
+
+```typescript
+// ✅ CORRECT: Transaction pattern
+await this.manager.transaction(async (transactionalEntityManager) => {
+  const entity1 = await transactionalEntityManager.save(entity1);
+  const entity2 = await transactionalEntityManager.save(entity2);
+  return { entity1, entity2 };
+});
+```
+
+## Error Handling
+
+### Database Error Handling
+
+- **ALWAYS** catch and handle database errors
+- Check for specific error codes (e.g., PostgreSQL unique violation: `23505`)
+- Log errors with context
+
+```typescript
+// ✅ CORRECT: Database error handling
+try {
+  await this.repository.save(entity);
+} catch (error) {
+  // Handle specific database errors
+  if (error.code === '23505') {
+    // PostgreSQL unique violation
+    this.logger.warn(`Duplicate key detected: ${error.detail}`);
+    throw new ConflictException('Resource already exists');
+  }
+  
+  this.logger.error(`Database error: ${error.message}`, error.stack);
+  throw new InternalServerErrorException('Database operation failed');
+}
+```
+
+## TypeORM Checklist
+
+Before using TypeORM operations, ensure:
+
+- [ ] Repository uses default connection (no connection name)
+- [ ] Entities are imported from `@avantodev/avanto-db`
+- [ ] Raw SQL uses parameterized queries
+- [ ] Database errors are handled with specific error codes
+- [ ] Column names match database schema (snake_case vs camelCase)
+- [ ] Transactions are used for multi-step operations
+- [ ] Null results are handled appropriately
+- [ ] Only needed fields are selected in queries

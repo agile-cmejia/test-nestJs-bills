@@ -1,0 +1,262 @@
+---
+description: Error handling patterns, exception filters, and structured error responses
+globs: "src/**/*.ts"
+alwaysApply: true
+---
+
+# Error Handling Patterns
+
+## Exception Types
+
+### NestJS Built-in Exceptions
+
+- **ALWAYS** use NestJS built-in exceptions:
+  - `BadRequestException` (400) - Validation errors, invalid input
+  - `UnauthorizedException` (401) - Authentication failures
+  - `ForbiddenException` (403) - Authorization failures, tenant disabled
+  - `NotFoundException` (404) - Resource not found
+  - `ConflictException` (409) - Duplicate resources, idempotency conflicts
+  - `ServiceUnavailableException` (503) - Microservice unavailable
+  - `InternalServerErrorException` (500) - Unexpected errors
+
+### Exception Usage
+
+```typescript
+// ✅ CORRECT: Exception usage
+throw new BadRequestException({
+  statusCode: 400,
+  error: 'Bad Request',
+  message: 'Invalid request data',
+  timestamp: new Date().toISOString(),
+});
+
+throw new UnauthorizedException({
+  statusCode: 401,
+  error: 'Unauthorized',
+  message: 'Tenant ID is required. Please authenticate using API key/secret or OAuth Bearer token.',
+  timestamp: new Date().toISOString(),
+  correlationId,
+});
+
+throw new NotFoundException({
+  statusCode: 404,
+  error: 'Not Found',
+  message: `Purchase Order with ID ${id} not found`,
+  timestamp: new Date().toISOString(),
+});
+```
+
+## Structured Error Responses
+
+### Error Response Format
+
+- **ALWAYS** use consistent error response format:
+  - `statusCode` - HTTP status code
+  - `error` - Error type name
+  - `message` - Human-readable error message
+  - `timestamp` - ISO 8601 timestamp
+  - `correlationId` - Request correlation ID (added by filter)
+  - Optional: `errorCode` - Specific error code for programmatic handling
+  - Optional: `errors` - Validation error details
+
+```typescript
+// ✅ CORRECT: Structured error response
+{
+  statusCode: 400,
+  error: 'Bad Request',
+  message: 'Validation failed',
+  timestamp: '2025-01-28T10:30:00.000Z',
+  correlationId: 'abc123-def456-ghi789',
+  errors: [
+    {
+      field: 'poInfo.poNumber',
+      constraints: {
+        isNotEmpty: 'poNumber should not be empty',
+        isString: 'poNumber must be a string',
+      },
+    },
+  ],
+}
+```
+
+## Exception Filters
+
+### Global Exception Filters
+
+- **ALWAYS** use global exception filters for consistent error formatting
+- `CorrelationIdExceptionFilter` - Adds correlation ID to all error responses
+- `AuditExceptionFilter` - Logs exceptions for audit
+
+```typescript
+// ✅ CORRECT: Exception filter pattern
+@Catch()
+export class CorrelationIdExceptionFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+
+    const correlationId = (request as any)[CORRELATION_ID_HEADER];
+    const status = exception instanceof HttpException 
+      ? exception.getStatus() 
+      : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    let responseBody: any = exception instanceof HttpException
+      ? exception.getResponse()
+      : { message: 'Internal server error' };
+
+    if (typeof responseBody === 'string') {
+      responseBody = { message: responseBody };
+    }
+
+    const body = {
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      ...responseBody,
+      correlationId, // Always include correlation ID
+    };
+
+    response.status(status).json(body);
+  }
+}
+```
+
+## Error Handling in Services
+
+### Try-Catch Pattern
+
+- **ALWAYS** use try-catch blocks in service methods
+- **ALWAYS** log errors before re-throwing
+- Re-throw HTTP exceptions as-is
+- Wrap unknown errors in appropriate HTTP exceptions
+
+```typescript
+// ✅ CORRECT: Service error handling
+async createPurchaseOrder(dto: CreatePurchaseOrderDto, tenantId: number): Promise<PurchaseOrderResponseDto> {
+  try {
+    // Business logic
+    const result = await this.processRequest(dto, tenantId);
+    return result;
+  } catch (error) {
+    this.logger.error(`Failed to create Purchase Order: ${error.message}`, error.stack);
+    
+    // Re-throw HTTP exceptions
+    if (
+      error instanceof BadRequestException ||
+      error instanceof NotFoundException ||
+      error instanceof UnauthorizedException
+    ) {
+      throw error;
+    }
+    
+    // Wrap unknown errors
+    throw new BadRequestException({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: error.message || 'Failed to create Purchase Order',
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+```
+
+## Validation Errors
+
+### Validation Error Format
+
+- Global validation pipe formats validation errors automatically
+- Errors include field paths and constraint violations
+- Use `flattenErrors()` helper for nested validation errors
+
+```typescript
+// ✅ CORRECT: Validation error format (from main.ts)
+const flattenErrors = (errors: ValidationError[], parentPath = ''): any[] => {
+  const results: any[] = [];
+  for (const err of errors) {
+    const path = parentPath ? `${parentPath}.${err.property}` : err.property;
+    const entry: any = { field: path };
+    if (err.constraints && Object.keys(err.constraints).length > 0) {
+      entry.constraints = err.constraints;
+    }
+    if (err.children && err.children.length > 0) {
+      entry.children = flattenErrors(err.children, path);
+    }
+    results.push(entry);
+  }
+  return results;
+};
+```
+
+## Error Codes
+
+### Error Code Constants
+
+- **ALWAYS** use error code constants for programmatic error handling
+- Define error codes in constants file
+- Use error codes in exception responses
+
+```typescript
+// ✅ CORRECT: Error code constants
+export enum AuthErrorCode {
+  MISSING_API_KEY = 'MISSING_API_KEY',
+  MISSING_API_SECRET = 'MISSING_API_SECRET',
+  INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
+  TENANT_NOT_FOUND = 'TENANT_NOT_FOUND',
+  TENANT_DISABLED = 'TENANT_DISABLED',
+  OAUTH_TOKEN_INVALID = 'OAUTH_TOKEN_INVALID',
+  SYSTEM_ERROR = 'SYSTEM_ERROR',
+}
+
+export const AuthErrorMessages: Record<AuthErrorCode, string> = {
+  [AuthErrorCode.MISSING_API_KEY]: 'API key is required',
+  [AuthErrorCode.MISSING_API_SECRET]: 'API secret is required',
+  [AuthErrorCode.INVALID_CREDENTIALS]: 'Invalid API credentials',
+  // ...
+};
+
+// Usage
+throw new UnauthorizedException({
+  statusCode: 401,
+  error: 'Unauthorized',
+  message: AuthErrorMessages[AuthErrorCode.INVALID_CREDENTIALS],
+  errorCode: AuthErrorCode.INVALID_CREDENTIALS,
+  timestamp: new Date().toISOString(),
+});
+```
+
+## Error Logging
+
+### Error Logging Pattern
+
+- **ALWAYS** log errors with context before throwing
+- Include: error message, stack trace, tenantId, correlationId, operation context
+- Use structured JSON logging
+
+```typescript
+// ✅ CORRECT: Error logging
+this.logger.error(JSON.stringify({
+  event: 'purchase_order_creation_failed',
+  error: error.message,
+  stack: error.stack,
+  tenantId,
+  correlationId,
+  poNumber: dto.poInfo.poNumber,
+  timestamp: new Date().toISOString(),
+}));
+```
+
+## Error Handling Checklist
+
+Before implementing error handling, ensure:
+
+- [ ] Appropriate NestJS exception types are used
+- [ ] Error responses follow consistent format
+- [ ] Correlation IDs are included in error responses
+- [ ] Errors are logged with context before throwing
+- [ ] HTTP exceptions are re-thrown as-is
+- [ ] Unknown errors are wrapped in appropriate HTTP exceptions
+- [ ] Error codes are used for programmatic error handling
+- [ ] Validation errors are properly formatted
+- [ ] Exception filters add correlation IDs to all errors
+- [ ] Error messages don't expose sensitive information

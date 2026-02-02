@@ -1,0 +1,16 @@
+{
+  "epic": "Example Epic",
+  "stories": [
+    {
+      "id": "EXAMPLE-01",
+      "description": "Example Story - Replace with actual task",
+      "files_to_touch": ["src/example.ts"],
+      "acceptance_criteria": [
+        "Criterion 1: Specific, measurable outcome",
+        "Criterion 2: Binary true/false check",
+        "Criterion 3: No subjective language"
+      ],
+      "passes": false
+    }
+  ]
+}
